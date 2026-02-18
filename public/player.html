@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kahoot Clone – Joueur</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #46178f; color: white; min-height: 100vh; }
+  .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+  .screen.active { display: flex; }
+
+  #join h1 { font-size: clamp(2rem,6vw,3rem); font-weight: 900; margin-bottom: 8px; }
+  #join p { opacity: .75; margin-bottom: 30px; }
+  .input-group { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 340px; }
+  .input-group input { padding: 16px 18px; border: none; border-radius: 10px; font-size: 1.2rem; font-weight: 700; text-align: center; color: #333; outline: none; }
+  .input-group input::placeholder { color: #bbb; font-weight: 400; }
+  .error-msg { color: #ff6b6b; font-size: .9rem; font-weight: 600; min-height: 20px; text-align: center; }
+
+  #lobby { text-align: center; gap: 15px; }
+  .my-name { font-size: clamp(2.5rem,8vw,4rem); font-weight: 900; }
+  .waiting { font-size: 1.1rem; opacity: .7; animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:.7} 50%{opacity:.3} }
+  .avatar { font-size: 5rem; margin-bottom: 10px; }
+
+  /* ── QUESTION ── */
+  #question-screen { background: #46178f; justify-content: flex-start; padding: 0; }
+  .q-header { background: rgba(0,0,0,0.3); width: 100%; padding: 12px 20px; text-align: center; }
+  .q-timer { font-size: 2rem; font-weight: 900; }
+  .q-timer.urgent { color: #ff6b6b; animation: shake .3s infinite; }
+  @keyframes shake { 0%,100%{transform:rotate(-2deg)} 50%{transform:rotate(2deg)} }
+  .q-type-banner { font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; display: inline-block; margin-top: 4px; }
+  .q-type-banner.single   { background: #1368ce; }
+  .q-type-banner.multiple { background: #e05a00; }
+
+  /* Image joueur */
+  .q-player-image { width: 100%; padding: 8px 15px 0; display: flex; justify-content: center; }
+  .q-player-image img { max-height: 140px; max-width: 100%; border-radius: 10px; object-fit: contain; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+
+  .q-body-text { font-size: clamp(1rem,2.5vw,1.4rem); font-weight: 600; padding: 12px 20px; text-align: center; width: 100%; }
+
+  /* Boutons choix unique */
+  .a-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 15px 15px; width: 100%; }
+  .a-btn { border: none; border-radius: 12px; padding: 14px 10px; font-size: clamp(.85rem,2vw,1.05rem); font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 80px; transition: all 0.2s; color: white; }
+  .a-btn:hover:not(:disabled) { transform: scale(1.04); filter: brightness(1.1); }
+  .a-btn:disabled { cursor: default; }
+  .a-btn .ico { font-size: 1.8rem; }
+  .a-btn.c0{background:#e21b3c} .a-btn.c1{background:#1368ce} .a-btn.c2{background:#d89e00} .a-btn.c3{background:#26890c}
+
+  /* Boutons choix multiple */
+  .a-checkboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 15px 0; width: 100%; }
+  .a-check-btn { border: 4px solid transparent; border-radius: 12px; padding: 12px 10px; font-size: clamp(.85rem,2vw,1.05rem); font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 80px; transition: all 0.2s; color: white; position: relative; }
+  .a-check-btn:hover:not(.disabled) { filter: brightness(1.1); }
+  .a-check-btn.c0{background:#e21b3c} .a-check-btn.c1{background:#1368ce} .a-check-btn.c2{background:#d89e00} .a-check-btn.c3{background:#26890c}
+  .a-check-btn.checked { border-color: white; transform: scale(1.04); filter: brightness(1.15); }
+  .a-check-btn.disabled { cursor: default; opacity: .7; }
+  .check-indicator { position: absolute; top: 6px; right: 8px; font-size: 1.2rem; }
+  .a-check-btn .ico { font-size: 1.8rem; }
+  .submit-bar { padding: 8px 15px 15px; width: 100%; }
+  .submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: #ffd700; color: #333; font-size: 1.1rem; font-weight: 900; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+  .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+  .submit-btn:disabled { opacity: .5; cursor: default; }
+
+  #answered { text-align: center; gap: 15px; }
+  .answered-icon { font-size: 5rem; }
+  #answered h2 { font-size: 1.6rem; }
+  #answered p { opacity: .75; }
+  .pts { font-size: 2.5rem; font-weight: 900; color: #ffd700; }
+
+  #q-result { text-align: center; gap: 12px; }
+  #q-result h2 { font-size: 1.6rem; }
+  .result-icon { font-size: 4rem; }
+  .my-rank { font-size: 1.1rem; opacity: .8; }
+  .lb-mini { width: 100%; max-width: 400px; }
+  .lb-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.12); border-radius: 10px; padding: 10px 14px; margin-bottom: 7px; font-weight: 600; }
+  .lb-row.me { background: rgba(255,255,255,.28); }
+  .lb-rank { font-size: 1.2rem; width: 28px; text-align: center; }
+  .lb-name { flex: 1; }
+  .lb-score { color: #ffd700; font-weight: 800; }
+
+  #final { text-align: center; gap: 12px; }
+  #final h1 { font-size: clamp(1.8rem,5vw,2.8rem); font-weight: 900; }
+  .final-rank { font-size: 5rem; }
+  .final-pts { font-size: 1.8rem; font-weight: 900; color: #ffd700; }
+  .full-lb { width: 100%; max-width: 400px; }
+
+  .btn { padding: 14px 30px; border: none; border-radius: 10px; font-size: 1.05rem; font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+  .btn-white { background: white; color: #46178f; }
+
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 30px; font-weight: 600; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- JOIN -->
+<div id="join" class="screen active">
+  <h1>🎮 Rejoindre</h1>
+  <p>Entre le code de la partie et ton pseudo</p>
+  <div class="input-group">
+    <input id="pin-input" type="text" inputmode="numeric" placeholder="Code du jeu" maxlength="6">
+    <input id="name-input" type="text" placeholder="Ton prénom" maxlength="20">
+    <div class="error-msg" id="err-msg"></div>
+    <button class="btn" style="background:#26890c;color:white;" onclick="joinGame()">🚀 Rejoindre</button>
+  </div>
+</div>
+
+<!-- LOBBY -->
+<div id="lobby" class="screen">
+  <div class="avatar" id="avatar">🎭</div>
+  <h2>Tu es dans la partie !</h2>
+  <div class="my-name" id="my-name-display">?</div>
+  <div class="waiting">⏳ En attente du début…</div>
+</div>
+
+<!-- QUESTION -->
+<div id="question-screen" class="screen" style="padding:0;justify-content:flex-start;">
+  <div class="q-header">
+    <div class="q-timer" id="q-timer">20</div>
+    <div id="q-progress" style="font-size:.8rem;opacity:.7;margin-top:4px;">Question 1</div>
+    <div id="q-type-banner" class="q-type-banner single">◉ Choix unique</div>
+  </div>
+  <!-- Image (masquée par défaut) -->
+  <div class="q-player-image" id="q-player-image" style="display:none;">
+    <img id="q-player-img" src="" alt="illustration">
+  </div>
+  <div class="q-body-text" id="q-body-text">…</div>
+  <div class="a-buttons"   id="a-buttons"></div>
+  <div class="a-checkboxes" id="a-checkboxes" style="display:none;"></div>
+  <div class="submit-bar"   id="submit-bar"   style="display:none;">
+    <button class="submit-btn" id="submit-btn" onclick="submitMultiple()">✅ Valider mes réponses</button>
+  </div>
+</div>
+
+<!-- ANSWERED -->
+<div id="answered" class="screen">
+  <div class="answered-icon" id="ans-icon">✅</div>
+  <h2 id="ans-title">Réponse enregistrée !</h2>
+  <p id="ans-sub">En attente des autres joueurs…</p>
+  <div class="pts" id="ans-pts"></div>
+</div>
+
+<!-- Q RESULT -->
+<div id="q-result" class="screen">
+  <div class="result-icon" id="result-icon">🎯</div>
+  <h2 id="result-title">Bonne réponse !</h2>
+  <div class="pts" id="result-pts"></div>
+  <div class="my-rank" id="my-rank"></div>
+  <div class="lb-mini" id="lb-mini"></div>
+</div>
+
+<!-- FINAL -->
+<div id="final" class="screen">
+  <h1>🏆 Partie terminée !</h1>
+  <div class="final-rank" id="final-rank">🎖</div>
+  <div class="final-pts"  id="final-pts"></div>
+  <div class="full-lb"    id="full-lb"></div>
+  <button class="btn btn-white" style="margin-top:10px;" onclick="location.reload()">🔄 Rejouer</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SHAPES  = ['🔴','🔵','🟡','🟢'];
+const AVATARS = ['😎','🦊','🐼','🦁','🐸','🦄','🐯','🐧','🦋','🦖','🎃','👾'];
+
+let ws, myName='', myPlayerId='', gamePin='';
+let timerInterval=null, submitted=false;
+let lastAnswer={ given:null, correct:null, points:0 };
+let myScore=0, currentQuestionType='single';
+let multipleSelection=new Set();
+
+function joinGame() {
+  const pin  = document.getElementById('pin-input').value.trim();
+  const name = document.getElementById('name-input').value.trim();
+  const err  = document.getElementById('err-msg');
+  err.textContent = '';
+  if (!pin || pin.length < 4) return (err.textContent = 'Code invalide');
+  if (!name || name.length < 2) return (err.textContent = 'Pseudo trop court');
+  fetch(`/api/check/${pin}`)
+    .then(r => r.json())
+    .then(data => { if (data.error) return (err.textContent=data.error); gamePin=pin; myName=name; connectWS(); })
+    .catch(() => (err.textContent='Serveur inaccessible'));
+}
+function connectWS() {
+  const proto = location.protocol==='https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen    = () => ws.send(JSON.stringify({ type:'player_join', pin:gamePin, name:myName }));
+  ws.onmessage = e => handleMsg(JSON.parse(e.data));
+  ws.onclose   = () => toast('❌ Connexion perdue');
+}
+function send(obj) { if (ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
+
+function handleMsg(msg) {
+  switch (msg.type) {
+    case 'joined':
+      myPlayerId=msg.playerId;
+      document.getElementById('my-name-display').textContent=myName;
+      document.getElementById('avatar').textContent=AVATARS[Math.floor(Math.random()*AVATARS.length)];
+      showScreen('lobby'); break;
+    case 'question':
+      lastAnswer={given:null,correct:null,points:0}; submitted=false; multipleSelection=new Set();
+      showQuestionScreen(msg); break;
+    case 'answer_received':
+      clearInterval(timerInterval);
+      lastAnswer.correct=msg.correct; lastAnswer.points=msg.points;
+      if (msg.correct) myScore+=msg.points;
+      showAnswered(msg.correct, msg.points); break;
+    case 'question_result': showQResult(msg); break;
+    case 'game_over':   clearInterval(timerInterval); showFinal(msg.leaderboard); break;
+    case 'host_left':   toast("⚠️ L'hôte a quitté la partie"); break;
+    case 'error':       document.getElementById('err-msg').textContent=msg.message; break;
+  }
+}
+
+function showQuestionScreen(msg) {
+  showScreen('question-screen');
+  currentQuestionType = msg.questionType || 'single';
+  document.getElementById('q-body-text').textContent = msg.question;
+  document.getElementById('q-progress').textContent  = `Question ${msg.index+1} / ${msg.total}`;
+
+  // Image
+  const imgWrap = document.getElementById('q-player-image');
+  const imgEl   = document.getElementById('q-player-img');
+  if (msg.image) { imgEl.src=msg.image; imgWrap.style.display='flex'; }
+  else           { imgWrap.style.display='none'; }
+
+  const banner = document.getElementById('q-type-banner');
+  banner.textContent = currentQuestionType==='multiple' ? '☑ Choix multiple — sélectionne puis valide' : '◉ Choix unique';
+  banner.className   = `q-type-banner ${currentQuestionType}`;
+
+  const singleDiv = document.getElementById('a-buttons');
+  const multiDiv  = document.getElementById('a-checkboxes');
+  const submitBar = document.getElementById('submit-bar');
+
+  if (currentQuestionType === 'multiple') {
+    singleDiv.style.display='none'; multiDiv.style.display='grid'; submitBar.style.display='block';
+    document.getElementById('submit-btn').disabled=false;
+    renderMultipleButtons(msg.answers);
+  } else {
+    singleDiv.style.display='grid'; multiDiv.style.display='none'; submitBar.style.display='none';
+    renderSingleButtons(msg.answers);
+  }
+
+  let t=msg.time;
+  const timerEl=document.getElementById('q-timer');
+  timerEl.textContent=t; timerEl.classList.remove('urgent');
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    t--; timerEl.textContent=t;
+    if (t<=5) timerEl.classList.add('urgent');
+    if (t<=0) { clearInterval(timerInterval); if (!submitted) { submitted=true; if (currentQuestionType==='multiple') send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:true}); showAnswered(false,0); } }
+  },1000);
+}
+
+function renderSingleButtons(answers) {
+  const div=document.getElementById('a-buttons'); div.innerHTML='';
+  answers.forEach((a,i)=>{ const btn=document.createElement('button'); btn.className=`a-btn c${i}`; btn.innerHTML=`<span class="ico">${SHAPES[i]}</span><span>${a}</span>`; btn.onclick=()=>submitSingle(i); div.appendChild(btn); });
+}
+function renderMultipleButtons(answers) {
+  const div=document.getElementById('a-checkboxes'); div.innerHTML='';
+  answers.forEach((a,i)=>{ const btn=document.createElement('div'); btn.className=`a-check-btn c${i}`; btn.id=`check-btn-${i}`; btn.innerHTML=`<span class="check-indicator" id="check-ind-${i}">☐</span><span class="ico">${SHAPES[i]}</span><span>${a}</span>`; btn.onclick=()=>toggleCheckBtn(i); div.appendChild(btn); });
+}
+function toggleCheckBtn(i) {
+  if (submitted) return;
+  const btn=document.getElementById(`check-btn-${i}`), ind=document.getElementById(`check-ind-${i}`);
+  if (multipleSelection.has(i)) { multipleSelection.delete(i); btn.classList.remove('checked'); ind.textContent='☐'; }
+  else { multipleSelection.add(i); btn.classList.add('checked'); ind.textContent='☑'; }
+  send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:false});
+}
+function submitSingle(idx) {
+  if (submitted) return; submitted=true;
+  document.querySelectorAll('.a-btn').forEach(b=>b.disabled=true);
+  send({type:'answer',pin:gamePin,answer:idx,final:true}); showAnswered(null,0);
+}
+function submitMultiple() {
+  if (submitted) return; submitted=true;
+  document.querySelectorAll('.a-check-btn').forEach(b=>b.classList.add('disabled'));
+  document.getElementById('submit-btn').disabled=true;
+  send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:true}); showAnswered(null,0);
+}
+
+function showAnswered(correct, points) {
+  showScreen('answered');
+  if (correct===null) {
+    document.getElementById('ans-icon').textContent='⏳';
+    document.getElementById('ans-title').textContent='Réponse envoyée !';
+    document.getElementById('ans-sub').textContent='En attente des résultats…';
+    document.getElementById('ans-pts').textContent='';
+  } else if (correct) {
+    document.getElementById('ans-icon').textContent='✅';
+    document.getElementById('ans-title').textContent='Bonne réponse ! 🎉';
+    document.getElementById('ans-sub').textContent='Tu as gagné';
+    document.getElementById('ans-pts').textContent=`+${points} pts`;
+  } else {
+    document.getElementById('ans-icon').textContent=points>0?'🟡':'❌';
+    document.getElementById('ans-title').textContent=points>0?'Réponse partielle':'Mauvaise réponse…';
+    document.getElementById('ans-sub').textContent=points>0?'Points partiels obtenus':'Courage pour la suite !';
+    document.getElementById('ans-pts').textContent=points>0?`+${points} pts`:'+0 pts';
+  }
+}
+
+function showQResult(msg) {
+  clearInterval(timerInterval); showScreen('q-result');
+  const wasCorrect=lastAnswer.correct===true, wasPartial=!wasCorrect&&lastAnswer.points>0;
+  document.getElementById('result-icon').textContent  = wasCorrect?'🎯':wasPartial?'🟡':'😢';
+  document.getElementById('result-title').textContent = wasCorrect?'Bonne réponse !':wasPartial?'Réponse partielle':'Mauvaise réponse';
+  document.getElementById('result-pts').textContent   = (wasCorrect||wasPartial)?`+${lastAnswer.points} pts`:'';
+  const me=msg.leaderboard.find(p=>p.name===myName);
+  document.getElementById('my-rank').textContent=me?`Classement : #${me.rank} — ${me.score} pts`:'';
+  const rankEmojis=['🥇','🥈','🥉'];
+  document.getElementById('lb-mini').innerHTML=msg.leaderboard.slice(0,5).map((p,i)=>`
+    <div class="lb-row ${p.name===myName?'me':''}">
+      <span class="lb-rank">${rankEmojis[i]||'#'+p.rank}</span>
+      <span class="lb-name">${p.name}${p.name===myName?' 👈':''}</span>
+      <span class="lb-score">${p.score} pts</span>
+    </div>`).join('');
+}
+
+function showFinal(leaderboard) {
+  showScreen('final');
+  const me=leaderboard.find(p=>p.name===myName), rank=me?me.rank:leaderboard.length;
+  document.getElementById('final-rank').textContent={1:'🥇',2:'🥈',3:'🥉'}[rank]||`#${rank}`;
+  document.getElementById('final-pts').textContent=`${myScore} points`;
+  document.getElementById('full-lb').innerHTML=leaderboard.map((p,i)=>`
+    <div class="lb-row ${p.name===myName?'me':''}">
+      <span class="lb-rank">${['🥇','🥈','🥉'][i]||'#'+p.rank}</span>
+      <span class="lb-name">${p.name}${p.name===myName?' 👈':''}</span>
+      <span class="lb-score">${p.score} pts</span>
+    </div>`).join('');
+}
+
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function toast(msg,d=3000) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),d); }
+document.getElementById('name-input').addEventListener('keydown', e=>{ if(e.key==='Enter') joinGame(); });
+document.getElementById('pin-input').addEventListener('keydown',  e=>{ if(e.key==='Enter') document.getElementById('name-input').focus(); });
+</script>
+</body>
+</html>
