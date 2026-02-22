@@ -33,7 +33,6 @@
   .q-type-banner.single   { background: #1368ce; }
   .q-type-banner.multiple { background: #e05a00; }
 
-  /* Image joueur */
   .q-player-image { width: 100%; padding: 8px 15px 0; display: flex; justify-content: center; }
   .q-player-image img { max-height: 140px; max-width: 100%; border-radius: 10px; object-fit: contain; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
 
@@ -45,13 +44,17 @@
   .a-btn:hover:not(:disabled) { transform: scale(1.04); filter: brightness(1.1); }
   .a-btn:disabled { cursor: default; }
   .a-btn .ico { font-size: 1.8rem; }
-  .a-btn.c0{background:#e21b3c} .a-btn.c1{background:#1368ce} .a-btn.c2{background:#d89e00} .a-btn.c3{background:#26890c}
+  .a-btn.c0 {background:#e21b3c} .a-btn.c1 {background:#1368ce} .a-btn.c2 {background:#d89e00} .a-btn.c3 {background:#26890c}
+  .a-btn.c4 {background:#e05a00} .a-btn.c5 {background:#7b2ff7} .a-btn.c6 {background:#555555} .a-btn.c7 {background:#888888}
+  .a-btn.c8 {background:#8B4513} .a-btn.c9 {background:#FFA500;color:#333} .a-btn.c10{background:#0099cc} .a-btn.c11{background:#cc0066}
 
   /* Boutons choix multiple */
   .a-checkboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 15px 0; width: 100%; }
   .a-check-btn { border: 4px solid transparent; border-radius: 12px; padding: 12px 10px; font-size: clamp(.85rem,2vw,1.05rem); font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 80px; transition: all 0.2s; color: white; position: relative; }
   .a-check-btn:hover:not(.disabled) { filter: brightness(1.1); }
-  .a-check-btn.c0{background:#e21b3c} .a-check-btn.c1{background:#1368ce} .a-check-btn.c2{background:#d89e00} .a-check-btn.c3{background:#26890c}
+  .a-check-btn.c0 {background:#e21b3c} .a-check-btn.c1 {background:#1368ce} .a-check-btn.c2 {background:#d89e00} .a-check-btn.c3 {background:#26890c}
+  .a-check-btn.c4 {background:#e05a00} .a-check-btn.c5 {background:#7b2ff7} .a-check-btn.c6 {background:#555555} .a-check-btn.c7 {background:#888888}
+  .a-check-btn.c8 {background:#8B4513} .a-check-btn.c9 {background:#FFA500;color:#333} .a-check-btn.c10{background:#0099cc} .a-check-btn.c11{background:#cc0066}
   .a-check-btn.checked { border-color: white; transform: scale(1.04); filter: brightness(1.15); }
   .a-check-btn.disabled { cursor: default; opacity: .7; }
   .check-indicator { position: absolute; top: 6px; right: 8px; font-size: 1.2rem; }
@@ -121,12 +124,11 @@
     <div id="q-progress" style="font-size:.8rem;opacity:.7;margin-top:4px;">Question 1</div>
     <div id="q-type-banner" class="q-type-banner single">◉ Choix unique</div>
   </div>
-  <!-- Image (masquée par défaut) -->
   <div class="q-player-image" id="q-player-image" style="display:none;">
     <img id="q-player-img" src="" alt="illustration">
   </div>
-  <div class="q-body-text" id="q-body-text">…</div>
-  <div class="a-buttons"   id="a-buttons"></div>
+  <div class="q-body-text"  id="q-body-text">…</div>
+  <div class="a-buttons"    id="a-buttons"></div>
   <div class="a-checkboxes" id="a-checkboxes" style="display:none;"></div>
   <div class="submit-bar"   id="submit-bar"   style="display:none;">
     <button class="submit-btn" id="submit-btn" onclick="submitMultiple()">✅ Valider mes réponses</button>
@@ -162,8 +164,12 @@
 <div id="toast"></div>
 
 <script>
-const SHAPES  = ['🔴','🔵','🟡','🟢'];
 const AVATARS = ['😎','🦊','🐼','🦁','🐸','🦄','🐯','🐧','🦋','🦖','🎃','👾'];
+
+function getShape(i) {
+  const shapes = ['🔴','🔵','🟡','🟢','🟠','🟣','⚫','⚪','🟤','🔶','🔷','🔸'];
+  return shapes[i] ?? `(${i + 1})`;
+}
 
 let ws, myName='', myPlayerId='', gamePin='';
 let timerInterval=null, submitted=false;
@@ -183,6 +189,7 @@ function joinGame() {
     .then(data => { if (data.error) return (err.textContent=data.error); gamePin=pin; myName=name; connectWS(); })
     .catch(() => (err.textContent='Serveur inaccessible'));
 }
+
 function connectWS() {
   const proto = location.protocol==='https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
@@ -220,7 +227,6 @@ function showQuestionScreen(msg) {
   document.getElementById('q-body-text').textContent = msg.question;
   document.getElementById('q-progress').textContent  = `Question ${msg.index+1} / ${msg.total}`;
 
-  // Image
   const imgWrap = document.getElementById('q-player-image');
   const imgEl   = document.getElementById('q-player-img');
   if (msg.image) { imgEl.src=msg.image; imgWrap.style.display='flex'; }
@@ -233,6 +239,12 @@ function showQuestionScreen(msg) {
   const singleDiv = document.getElementById('a-buttons');
   const multiDiv  = document.getElementById('a-checkboxes');
   const submitBar = document.getElementById('submit-bar');
+
+  // Adapter le nombre de colonnes
+  const n = msg.answers.length;
+  const cols = n <= 4 ? '1fr 1fr' : n <= 6 ? '1fr 1fr 1fr' : '1fr 1fr 1fr 1fr';
+  singleDiv.style.gridTemplateColumns = cols;
+  multiDiv.style.gridTemplateColumns  = cols;
 
   if (currentQuestionType === 'multiple') {
     singleDiv.style.display='none'; multiDiv.style.display='grid'; submitBar.style.display='block';
@@ -250,18 +262,42 @@ function showQuestionScreen(msg) {
   timerInterval=setInterval(()=>{
     t--; timerEl.textContent=t;
     if (t<=5) timerEl.classList.add('urgent');
-    if (t<=0) { clearInterval(timerInterval); if (!submitted) { submitted=true; if (currentQuestionType==='multiple') send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:true}); showAnswered(false,0); } }
+    if (t<=0) {
+      clearInterval(timerInterval);
+      if (!submitted) {
+        submitted=true;
+        if (currentQuestionType==='multiple') send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:true});
+        showAnswered(false,0);
+      }
+    }
   },1000);
 }
 
 function renderSingleButtons(answers) {
-  const div=document.getElementById('a-buttons'); div.innerHTML='';
-  answers.forEach((a,i)=>{ const btn=document.createElement('button'); btn.className=`a-btn c${i}`; btn.innerHTML=`<span class="ico">${SHAPES[i]}</span><span>${a}</span>`; btn.onclick=()=>submitSingle(i); div.appendChild(btn); });
+  const div=document.getElementById('a-buttons');
+  div.innerHTML='';
+  answers.forEach((a,i)=>{
+    const btn=document.createElement('button');
+    btn.className=`a-btn c${i % 12}`;
+    btn.innerHTML=`<span class="ico">${getShape(i)}</span><span>${a}</span>`;
+    btn.onclick=()=>submitSingle(i);
+    div.appendChild(btn);
+  });
 }
+
 function renderMultipleButtons(answers) {
-  const div=document.getElementById('a-checkboxes'); div.innerHTML='';
-  answers.forEach((a,i)=>{ const btn=document.createElement('div'); btn.className=`a-check-btn c${i}`; btn.id=`check-btn-${i}`; btn.innerHTML=`<span class="check-indicator" id="check-ind-${i}">☐</span><span class="ico">${SHAPES[i]}</span><span>${a}</span>`; btn.onclick=()=>toggleCheckBtn(i); div.appendChild(btn); });
+  const div=document.getElementById('a-checkboxes');
+  div.innerHTML='';
+  answers.forEach((a,i)=>{
+    const btn=document.createElement('div');
+    btn.className=`a-check-btn c${i % 12}`;
+    btn.id=`check-btn-${i}`;
+    btn.innerHTML=`<span class="check-indicator" id="check-ind-${i}">☐</span><span class="ico">${getShape(i)}</span><span>${a}</span>`;
+    btn.onclick=()=>toggleCheckBtn(i);
+    div.appendChild(btn);
+  });
 }
+
 function toggleCheckBtn(i) {
   if (submitted) return;
   const btn=document.getElementById(`check-btn-${i}`), ind=document.getElementById(`check-ind-${i}`);
@@ -269,16 +305,20 @@ function toggleCheckBtn(i) {
   else { multipleSelection.add(i); btn.classList.add('checked'); ind.textContent='☑'; }
   send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:false});
 }
+
 function submitSingle(idx) {
   if (submitted) return; submitted=true;
   document.querySelectorAll('.a-btn').forEach(b=>b.disabled=true);
-  send({type:'answer',pin:gamePin,answer:idx,final:true}); showAnswered(null,0);
+  send({type:'answer',pin:gamePin,answer:idx,final:true});
+  showAnswered(null,0);
 }
+
 function submitMultiple() {
   if (submitted) return; submitted=true;
   document.querySelectorAll('.a-check-btn').forEach(b=>b.classList.add('disabled'));
   document.getElementById('submit-btn').disabled=true;
-  send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:true}); showAnswered(null,0);
+  send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:true});
+  showAnswered(null,0);
 }
 
 function showAnswered(correct, points) {
@@ -331,8 +371,15 @@ function showFinal(leaderboard) {
     </div>`).join('');
 }
 
-function showScreen(id) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-function toast(msg,d=3000) { const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),d); }
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function toast(msg,d=3000) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),d);
+}
 document.getElementById('name-input').addEventListener('keydown', e=>{ if(e.key==='Enter') joinGame(); });
 document.getElementById('pin-input').addEventListener('keydown',  e=>{ if(e.key==='Enter') document.getElementById('name-input').focus(); });
 </script>

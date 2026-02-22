@@ -47,20 +47,16 @@ const upload = multer({
   },
 });
 
-// Wrapper qui transforme les erreurs multer en réponses JSON propres
 function handleUpload(req, res, next) {
   upload.single('image')(req, res, (err) => {
     if (!err) return next();
-
-    // Supprimer le fichier partiellement écrit s'il existe
     if (req.file) fs.unlink(req.file.path, () => {});
-
     if (err instanceof multer.MulterError) {
       switch (err.code) {
         case 'LIMIT_FILE_SIZE':
           return res.status(413).json({
             error:     'Fichier trop volumineux',
-            detail:    `La taille maximale autorisée est de ${MAX_SIZE_MB} Mo. Compresse ton image avant de l'uploader.`,
+            detail:    `La taille maximale autorisée est de ${MAX_SIZE_MB} Mo.`,
             code:      'FILE_TOO_LARGE',
             maxSizeMb: MAX_SIZE_MB,
           });
@@ -77,8 +73,6 @@ function handleUpload(req, res, next) {
           return res.status(400).json({ error: `Erreur d'upload : ${err.message}`, code: err.code });
       }
     }
-
-    // Erreur inconnue (système, disque plein, etc.)
     console.error('[upload] Erreur inattendue :', err);
     return res.status(500).json({
       error:  "Erreur serveur lors de l'upload",
@@ -114,10 +108,12 @@ function getLeaderboard(game) {
 }
 
 function getAnswerCounts(game) {
-  const counts = [0, 0, 0, 0];
+  const q     = game.questions[game.currentQ];
+  const count = q ? q.answers.length : 4;
+  const counts = new Array(count).fill(0);
   Object.values(game.answers).forEach(a => {
     const selected = Array.isArray(a.answer) ? a.answer : [a.answer];
-    selected.forEach(idx => { if (idx >= 0 && idx <= 3) counts[idx]++; });
+    selected.forEach(idx => { if (idx >= 0 && idx < count) counts[idx]++; });
   });
   return counts;
 }
@@ -201,8 +197,6 @@ app.delete('/api/quizzes/:id', (req, res) => {
   const file = path.join(QUIZ_DIR, `${req.params.id}.json`);
   if (!fs.existsSync(file))
     return res.status(404).json({ error: 'Quiz introuvable' });
-
-  // Supprimer les images liées
   try {
     const quiz = JSON.parse(fs.readFileSync(file, 'utf8'));
     quiz.questions.forEach(q => {
@@ -212,7 +206,6 @@ app.delete('/api/quizzes/:id', (req, res) => {
       }
     });
   } catch {}
-
   fs.unlinkSync(file);
   res.json({ ok: true });
 });
@@ -257,7 +250,6 @@ wss.on('connection', (ws) => {
     const { type, pin } = msg;
     const game = games[pin];
 
-    // ── Hôte : s'enregistre ──────────────────────────────────────────────────
     if (type === 'host_join') {
       if (!game)
         return ws.send(JSON.stringify({ type: 'error', message: 'Partie introuvable' }));
@@ -268,7 +260,6 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // ── Joueur : rejoint ─────────────────────────────────────────────────────
     if (type === 'player_join') {
       if (!game)
         return ws.send(JSON.stringify({ type: 'error', message: 'Code invalide' }));
@@ -292,7 +283,6 @@ wss.on('connection', (ws) => {
 
     if (!game) return;
 
-    // ── Hôte : démarrer ──────────────────────────────────────────────────────
     if (type === 'start_game' && ws.role === 'host') {
       if (game.players.length === 0)
         return sendToHost(game, { type: 'error', message: 'Aucun joueur' });
@@ -300,19 +290,16 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // ── Hôte : question suivante ─────────────────────────────────────────────
     if (type === 'next_question' && ws.role === 'host') {
       if (game.state === 'q_result') nextQuestion(game);
       return;
     }
 
-    // ── Hôte : terminer ──────────────────────────────────────────────────────
     if (type === 'end_game' && ws.role === 'host') {
       endGame(game);
       return;
     }
 
-    // ── Joueur : réponse (choix unique ou multiple) ──────────────────────────
     if (type === 'answer' && ws.role === 'player') {
       if (game.state !== 'question') return;
       const player = game.players.find(p => p.id === ws.playerId);
@@ -322,7 +309,6 @@ wss.on('connection', (ws) => {
       const isMultiple = q.type === 'multiple';
 
       if (isMultiple) {
-        // Mise à jour de sélection intermédiaire (pas encore soumis)
         if (!msg.final) {
           game.answers[ws.playerId] = { answer: msg.answer, submitted: false };
           return;
@@ -348,7 +334,6 @@ wss.on('connection', (ws) => {
           points = Math.round(500 + 500 * ratio);
           player.score += points;
         } else if ([...givenSet].every(i => correctSet.has(i)) && givenSet.size > 0) {
-          // Points partiels : bonnes réponses seulement, mais pas toutes
           points = Math.round(([...givenSet].filter(i => correctSet.has(i)).length / correctSet.size) * 300);
           player.score += points;
         }
@@ -368,7 +353,6 @@ wss.on('connection', (ws) => {
       const submittedCount = Object.values(game.answers).filter(a => a.submitted).length;
       sendToHost(game, { type: 'answer_count', count: submittedCount, total: activePlayers.length });
 
-      // Tous les joueurs ont répondu → révéler après 1s
       if (submittedCount >= activePlayers.length) {
         clearTimeout(game.timer);
         game.autoTimer = setTimeout(() => revealAnswer(game), 1000);
@@ -388,7 +372,6 @@ wss.on('connection', (ws) => {
       const activeCount = game.players.filter(p => p.ws && p.ws.readyState === WebSocket.OPEN).length;
       sendToHost(game, { type: 'player_left', count: activeCount });
 
-      // Si ce joueur était le dernier à ne pas avoir répondu
       if (game.state === 'question') {
         const activePlayers  = game.players.filter(p => p.ws && p.ws.readyState === WebSocket.OPEN);
         const submittedCount = Object.values(game.answers).filter(a => a.submitted).length;
@@ -470,7 +453,6 @@ function revealAnswer(game) {
     isLast,
   });
 
-  // Auto-avance après 5s
   game.autoTimer = setTimeout(() => {
     if (game.state === 'q_result') isLast ? endGame(game) : nextQuestion(game);
   }, 5000);
@@ -483,7 +465,6 @@ function endGame(game) {
   const leaderboard = getLeaderboard(game);
   sendToHost(game, { type: 'game_over', leaderboard });
   broadcast(game,  { type: 'game_over', leaderboard });
-  // Nettoyer la partie après 10 minutes
   setTimeout(() => delete games[game.pin], 10 * 60 * 1000);
 }
 
