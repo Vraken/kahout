@@ -88,6 +88,24 @@
   .ans-controls { display: flex; gap: 6px; margin-top: 6px; }
   .editor-footer { padding: 15px 20px; background: white; border-top: 1px solid #e0e0e0; display: flex; gap: 10px; flex-wrap: wrap; }
 
+  /* ── VALIDATION ERRORS ── */
+  .q-card.has-error { border: 2px solid #e21b3c; box-shadow: 0 0 0 4px rgba(226,27,60,0.15); }
+  .field-error textarea,
+  .field-error-textarea { border-color: #e21b3c !important; background: #fff5f7 !important; }
+  .ans-wrap.field-error-answer { background: #fff8e1 !important; border-color: #f0a500 !important; }
+  .ans-wrap.field-error-answer input[type=text] { color: #b36b00; }
+  .correct-error-msg {
+    font-size: 0.8rem; font-weight: 700; color: #e21b3c;
+    background: #fff0f2; border: 1px solid #e21b3c;
+    border-radius: 6px; padding: 5px 10px; margin-top: 4px;
+  }
+  @keyframes shake-card {
+    0%,100% { transform: translateX(0); }
+    20%,60% { transform: translateX(-6px); }
+    40%,80% { transform: translateX(6px); }
+  }
+  .q-card.has-error { animation: shake-card 0.4s ease; }
+
   /* ── LOBBY ── */
   #lobby { background: linear-gradient(135deg, #46178f, #7b2ff7); align-items: center; justify-content: flex-start; padding: 30px 20px; gap: 20px; }
   .pin-box { background: white; color: #333; border-radius: 16px; padding: 20px 50px; text-align: center; }
@@ -549,19 +567,78 @@ function syncFromDOM() {
 // ─── Validation ───────────────────────────────────────────────────────────────
 function validateQuestions() {
   syncFromDOM();
+  clearAllValidationErrors();
+  let firstErrorCard = null;
+  let valid = true;
+
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
+    const card = document.querySelectorAll('#q-list .q-card')[i];
+    if (!card) continue;
+    let cardHasError = false;
+
+    // Texte de la question vide
     if (!q.question.trim()) {
-      toast(`⚠️ Question ${i + 1} : texte vide`); return false;
+      const ta = card.querySelector('textarea');
+      if (ta) ta.classList.add('field-error-textarea');
+      cardHasError = true;
+      valid = false;
     }
-    if (q.answers.some(a => !a.trim())) {
-      toast(`⚠️ Question ${i + 1} : réponse vide`); return false;
-    }
+
+    // Réponses vides
+    const ansWraps = card.querySelectorAll('.ans-wrap');
+    ansWraps.forEach((wrap, j) => {
+      if (!q.answers[j] || !q.answers[j].trim()) {
+        wrap.classList.add('field-error-answer');
+        cardHasError = true;
+        valid = false;
+      }
+    });
+
+    // Aucune bonne réponse cochée (choix multiple)
     if (q.type === 'multiple' && (!Array.isArray(q.correct) || q.correct.length === 0)) {
-      toast(`⚠️ Question ${i + 1} : cochez au moins une bonne réponse`); return false;
+      showCorrectError(card, 'Cochez au moins une bonne réponse');
+      cardHasError = true;
+      valid = false;
+    }
+
+    // Aucune bonne réponse sélectionnée (choix unique — cas rare mais possible si correct=-1)
+    if (q.type === 'single' && (q.correct == null || q.correct < 0)) {
+      showCorrectError(card, 'Sélectionnez une bonne réponse');
+      cardHasError = true;
+      valid = false;
+    }
+
+    if (cardHasError) {
+      card.classList.add('has-error');
+      if (!firstErrorCard) firstErrorCard = card;
     }
   }
-  return true;
+
+  if (!valid) {
+    const errorCount = document.querySelectorAll('.q-card.has-error').length;
+    toast(`⚠️ ${errorCount} question(s) incomplète(s) — champs en rouge à corriger`);
+    setTimeout(() => firstErrorCard?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  }
+
+  return valid;
+}
+
+function clearAllValidationErrors() {
+  document.querySelectorAll('.q-card.has-error').forEach(c => c.classList.remove('has-error'));
+  document.querySelectorAll('.field-error-textarea').forEach(el => el.classList.remove('field-error-textarea'));
+  document.querySelectorAll('.field-error-answer').forEach(el => el.classList.remove('field-error-answer'));
+  document.querySelectorAll('.correct-error-msg').forEach(el => el.remove());
+}
+
+function showCorrectError(card, message) {
+  // Évite les doublons
+  if (card.querySelector('.correct-error-msg')) return;
+  const el = document.createElement('div');
+  el.className   = 'correct-error-msg';
+  el.textContent = '⚠️ ' + message;
+  const controls = card.querySelector('.ans-controls');
+  if (controls) controls.insertAdjacentElement('afterend', el);
 }
 
 // ─── Type de question ─────────────────────────────────────────────────────────
