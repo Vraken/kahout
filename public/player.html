@@ -4,94 +4,99 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kahoot Clone – Joueur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', sans-serif; background: #46178f; color: white; min-height: 100vh; }
-  .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fb; color: #1a1a2e; min-height: 100vh; line-height: 1.5; }
+  .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
   .screen.active { display: flex; }
 
-  #join h1 { font-size: clamp(2rem,6vw,3rem); font-weight: 900; margin-bottom: 8px; }
-  #join p { opacity: .75; margin-bottom: 30px; }
-  .input-group { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 340px; }
-  .input-group input { padding: 16px 18px; border: none; border-radius: 10px; font-size: 1.2rem; font-weight: 700; text-align: center; color: #333; outline: none; }
-  .input-group input::placeholder { color: #bbb; font-weight: 400; }
-  .error-msg { color: #ff6b6b; font-size: .9rem; font-weight: 600; min-height: 20px; text-align: center; }
+  #join { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; }
+  #join h1 { font-size: clamp(1.8rem,6vw,2.5rem); font-weight: 800; margin-bottom: 8px; }
+  #join p { opacity: .8; margin-bottom: 32px; }
+  .input-group { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 340px; }
+  .input-group input { padding: 16px 20px; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 600; text-align: center; color: #1a1a2e; outline: none; background: white; }
+  .input-group input::placeholder { color: #9ca3af; font-weight: 400; }
+  .input-group input:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.3); }
+  .error-msg { color: #fecaca; font-size: .9rem; font-weight: 500; min-height: 20px; text-align: center; }
 
-  #lobby { text-align: center; gap: 15px; }
-  .my-name { font-size: clamp(2.5rem,8vw,4rem); font-weight: 900; }
-  .waiting { font-size: 1.1rem; opacity: .7; animation: pulse 1.8s infinite; }
-  @keyframes pulse { 0%,100%{opacity:.7} 50%{opacity:.3} }
-  .avatar { font-size: 5rem; margin-bottom: 10px; }
+  #lobby { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; text-align: center; gap: 16px; }
+  .my-name { font-size: clamp(2rem,8vw,3.5rem); font-weight: 800; }
+  .waiting { font-size: 1rem; opacity: .8; animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:.8} 50%{opacity:.4} }
+  .avatar { font-size: 4rem; margin-bottom: 8px; }
 
   /* ── QUESTION ── */
-  #question-screen { background: #46178f; justify-content: flex-start; padding: 0; }
-  .q-header { background: rgba(0,0,0,0.3); width: 100%; padding: 12px 20px; text-align: center; }
-  .q-timer { font-size: 2rem; font-weight: 900; }
-  .q-timer.urgent { color: #ff6b6b; animation: shake .3s infinite; }
+  #question-screen { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; justify-content: flex-start; padding: 0; }
+  .q-header { background: rgba(0,0,0,0.2); width: 100%; padding: 14px 24px; text-align: center; }
+  .q-timer { font-size: 2rem; font-weight: 800; }
+  .q-timer.urgent { color: #fca5a5; animation: shake .3s infinite; }
   @keyframes shake { 0%,100%{transform:rotate(-2deg)} 50%{transform:rotate(2deg)} }
-  .q-type-banner { font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; display: inline-block; margin-top: 4px; }
-  .q-type-banner.single   { background: #1368ce; }
-  .q-type-banner.multiple { background: #e05a00; }
+  .q-type-banner { font-size: 0.8rem; font-weight: 600; padding: 6px 14px; border-radius: 20px; display: inline-block; margin-top: 6px; background: rgba(255,255,255,0.15); }
+  .q-type-banner.single   { background: rgba(255,255,255,0.15); }
+  .q-type-banner.multiple { background: rgba(255,255,255,0.15); }
 
-  .q-player-image { width: 100%; padding: 8px 15px 0; display: flex; justify-content: center; }
-  .q-player-image img { max-height: 140px; max-width: 100%; border-radius: 10px; object-fit: contain; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+  .q-player-image { width: 100%; padding: 12px 20px 0; display: flex; justify-content: center; }
+  .q-player-image img { max-height: 130px; max-width: 100%; border-radius: 12px; object-fit: contain; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
 
-  .q-body-text { font-size: clamp(1rem,2.5vw,1.4rem); font-weight: 600; padding: 12px 20px; text-align: center; width: 100%; }
+  .q-body-text { font-size: clamp(1rem,2.5vw,1.3rem); font-weight: 600; padding: 14px 24px; text-align: center; width: 100%; }
 
   /* Boutons choix unique */
-  .a-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 15px 15px; width: 100%; }
-  .a-btn { border: none; border-radius: 12px; padding: 14px 10px; font-size: clamp(.85rem,2vw,1.05rem); font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 80px; transition: all 0.2s; color: white; }
+  .a-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 20px 20px; width: 100%; }
+  .a-btn { border: none; border-radius: 14px; padding: 16px 12px; font-size: clamp(.85rem,2vw,1rem); font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 85px; transition: all 0.2s; color: white; }
   .a-btn:hover:not(:disabled) { transform: scale(1.04); filter: brightness(1.1); }
   .a-btn:disabled { cursor: default; }
-  .a-btn .ico { font-size: 1.8rem; }
-  .a-btn.c0 {background:#e21b3c} .a-btn.c1 {background:#1368ce} .a-btn.c2 {background:#d89e00} .a-btn.c3 {background:#26890c}
-  .a-btn.c4 {background:#e05a00} .a-btn.c5 {background:#7b2ff7} .a-btn.c6 {background:#555555} .a-btn.c7 {background:#888888}
-  .a-btn.c8 {background:#8B4513} .a-btn.c9 {background:#FFA500;color:#333} .a-btn.c10{background:#0099cc} .a-btn.c11{background:#cc0066}
+  .a-btn .ico { font-size: 1.6rem; }
+  .a-btn.c0 {background:#ef4444} .a-btn.c1 {background:#3b82f6} .a-btn.c2 {background:#eab308} .a-btn.c3 {background:#22c55e}
+  .a-btn.c4 {background:#f97316} .a-btn.c5 {background:#8b5cf6} .a-btn.c6 {background:#6b7280} .a-btn.c7 {background:#9ca3af}
+  .a-btn.c8 {background:#a16207} .a-btn.c9 {background:#ea580c} .a-btn.c10{background:#0891b2} .a-btn.c11{background:#db2777}
 
   /* Boutons choix multiple */
-  .a-checkboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 15px 0; width: 100%; }
-  .a-check-btn { border: 4px solid transparent; border-radius: 12px; padding: 12px 10px; font-size: clamp(.85rem,2vw,1.05rem); font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; min-height: 80px; transition: all 0.2s; color: white; position: relative; }
+  .a-checkboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 20px 0; width: 100%; }
+  .a-check-btn { border: 3px solid transparent; border-radius: 14px; padding: 14px 12px; font-size: clamp(.85rem,2vw,1rem); font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 85px; transition: all 0.2s; color: white; position: relative; }
   .a-check-btn:hover:not(.disabled) { filter: brightness(1.1); }
-  .a-check-btn.c0 {background:#e21b3c} .a-check-btn.c1 {background:#1368ce} .a-check-btn.c2 {background:#d89e00} .a-check-btn.c3 {background:#26890c}
-  .a-check-btn.c4 {background:#e05a00} .a-check-btn.c5 {background:#7b2ff7} .a-check-btn.c6 {background:#555555} .a-check-btn.c7 {background:#888888}
-  .a-check-btn.c8 {background:#8B4513} .a-check-btn.c9 {background:#FFA500;color:#333} .a-check-btn.c10{background:#0099cc} .a-check-btn.c11{background:#cc0066}
+  .a-check-btn.c0 {background:#ef4444} .a-check-btn.c1 {background:#3b82f6} .a-check-btn.c2 {background:#eab308} .a-check-btn.c3 {background:#22c55e}
+  .a-check-btn.c4 {background:#f97316} .a-check-btn.c5 {background:#8b5cf6} .a-check-btn.c6 {background:#6b7280} .a-check-btn.c7 {background:#9ca3af}
+  .a-check-btn.c8 {background:#a16207} .a-check-btn.c9 {background:#ea580c} .a-check-btn.c10{background:#0891b2} .a-check-btn.c11{background:#db2777}
   .a-check-btn.checked { border-color: white; transform: scale(1.04); filter: brightness(1.15); }
   .a-check-btn.disabled { cursor: default; opacity: .7; }
-  .check-indicator { position: absolute; top: 6px; right: 8px; font-size: 1.2rem; }
-  .a-check-btn .ico { font-size: 1.8rem; }
-  .submit-bar { padding: 8px 15px 15px; width: 100%; }
-  .submit-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: #ffd700; color: #333; font-size: 1.1rem; font-weight: 900; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; }
-  .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+  .check-indicator { position: absolute; top: 8px; right: 10px; font-size: 1.1rem; }
+  .a-check-btn .ico { font-size: 1.6rem; }
+  .submit-bar { padding: 12px 20px 20px; width: 100%; }
+  .submit-btn { width: 100%; padding: 16px; border: none; border-radius: 14px; background: #fbbf24; color: #1a1a2e; font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+  .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
   .submit-btn:disabled { opacity: .5; cursor: default; }
 
-  #answered { text-align: center; gap: 15px; }
-  .answered-icon { font-size: 5rem; }
-  #answered h2 { font-size: 1.6rem; }
-  #answered p { opacity: .75; }
-  .pts { font-size: 2.5rem; font-weight: 900; color: #ffd700; }
+  #answered { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; text-align: center; gap: 16px; }
+  .answered-icon { font-size: 4rem; }
+  #answered h2 { font-size: 1.5rem; font-weight: 600; }
+  #answered p { opacity: .8; }
+  .pts { font-size: 2.2rem; font-weight: 800; color: #fbbf24; }
 
-  #q-result { text-align: center; gap: 12px; }
-  #q-result h2 { font-size: 1.6rem; }
-  .result-icon { font-size: 4rem; }
-  .my-rank { font-size: 1.1rem; opacity: .8; }
-  .lb-mini { width: 100%; max-width: 400px; }
-  .lb-row { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.12); border-radius: 10px; padding: 10px 14px; margin-bottom: 7px; font-weight: 600; }
-  .lb-row.me { background: rgba(255,255,255,.28); }
-  .lb-rank { font-size: 1.2rem; width: 28px; text-align: center; }
+  #q-result { background: linear-gradient(135deg, #1e1b4b, #312e81); color: white; text-align: center; gap: 14px; }
+  #q-result h2 { font-size: 1.5rem; font-weight: 600; }
+  .result-icon { font-size: 3.5rem; }
+  .my-rank { font-size: 1rem; opacity: .85; }
+  .lb-mini { width: 100%; max-width: 380px; }
+  .lb-row { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,.12); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; font-weight: 500; backdrop-filter: blur(4px); }
+  .lb-row.me { background: rgba(255,255,255,.25); }
+  .lb-rank { font-size: 1.1rem; width: 30px; text-align: center; }
   .lb-name { flex: 1; }
-  .lb-score { color: #ffd700; font-weight: 800; }
+  .lb-score { color: #fbbf24; font-weight: 700; }
 
-  #final { text-align: center; gap: 12px; }
-  #final h1 { font-size: clamp(1.8rem,5vw,2.8rem); font-weight: 900; }
-  .final-rank { font-size: 5rem; }
-  .final-pts { font-size: 1.8rem; font-weight: 900; color: #ffd700; }
-  .full-lb { width: 100%; max-width: 400px; }
+  #final { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; text-align: center; gap: 14px; }
+  #final h1 { font-size: clamp(1.6rem,5vw,2.4rem); font-weight: 800; }
+  .final-rank { font-size: 4rem; }
+  .final-pts { font-size: 1.6rem; font-weight: 800; color: #fbbf24; }
+  .full-lb { width: 100%; max-width: 380px; }
 
-  .btn { padding: 14px 30px; border: none; border-radius: 10px; font-size: 1.05rem; font-weight: 700; cursor: pointer; transition: all 0.2s; text-transform: uppercase; letter-spacing: 1px; }
-  .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
-  .btn-white { background: white; color: #46178f; }
+  .btn { padding: 14px 32px; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.2); }
+  .btn-white { background: white; color: #4f46e5; }
 
-  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 30px; font-weight: 600; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 14px 28px; border-radius: 12px; font-weight: 500; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
   #toast.show { opacity: 1; }
 </style>
 </head>
@@ -99,13 +104,13 @@
 
 <!-- JOIN -->
 <div id="join" class="screen active">
-  <h1>🎮 Rejoindre</h1>
+  <h1>Rejoindre</h1>
   <p>Entre le code de la partie et ton pseudo</p>
   <div class="input-group">
     <input id="pin-input" type="text" inputmode="numeric" placeholder="Code du jeu" maxlength="6">
     <input id="name-input" type="text" placeholder="Ton prénom" maxlength="20">
     <div class="error-msg" id="err-msg"></div>
-    <button class="btn" style="background:#26890c;color:white;" onclick="joinGame()">🚀 Rejoindre</button>
+    <button class="btn" style="background:#22c55e;color:white;" onclick="joinGame()">Rejoindre</button>
   </div>
 </div>
 
@@ -114,7 +119,7 @@
   <div class="avatar" id="avatar">🎭</div>
   <h2>Tu es dans la partie !</h2>
   <div class="my-name" id="my-name-display">?</div>
-  <div class="waiting">⏳ En attente du début…</div>
+  <div class="waiting">En attente du début...</div>
 </div>
 
 <!-- QUESTION -->
@@ -122,7 +127,7 @@
   <div class="q-header">
     <div class="q-timer" id="q-timer">20</div>
     <div id="q-progress" style="font-size:.8rem;opacity:.7;margin-top:4px;">Question 1</div>
-    <div id="q-type-banner" class="q-type-banner single">◉ Choix unique</div>
+    <div id="q-type-banner" class="q-type-banner single">Choix unique</div>
   </div>
   <div class="q-player-image" id="q-player-image" style="display:none;">
     <img id="q-player-img" src="" alt="illustration">
@@ -131,7 +136,7 @@
   <div class="a-buttons"    id="a-buttons"></div>
   <div class="a-checkboxes" id="a-checkboxes" style="display:none;"></div>
   <div class="submit-bar"   id="submit-bar"   style="display:none;">
-    <button class="submit-btn" id="submit-btn" onclick="submitMultiple()">✅ Valider mes réponses</button>
+    <button class="submit-btn" id="submit-btn" onclick="submitMultiple()">Valider mes réponses</button>
   </div>
 </div>
 
@@ -139,7 +144,7 @@
 <div id="answered" class="screen">
   <div class="answered-icon" id="ans-icon">✅</div>
   <h2 id="ans-title">Réponse enregistrée !</h2>
-  <p id="ans-sub">En attente des autres joueurs…</p>
+  <p id="ans-sub">En attente des autres joueurs...</p>
   <div class="pts" id="ans-pts"></div>
 </div>
 
@@ -154,11 +159,11 @@
 
 <!-- FINAL -->
 <div id="final" class="screen">
-  <h1>🏆 Partie terminée !</h1>
+  <h1>Partie terminée !</h1>
   <div class="final-rank" id="final-rank">🎖</div>
   <div class="final-pts"  id="final-pts"></div>
   <div class="full-lb"    id="full-lb"></div>
-  <button class="btn btn-white" style="margin-top:10px;" onclick="location.reload()">🔄 Rejouer</button>
+  <button class="btn btn-white" style="margin-top:12px;" onclick="location.reload()">Rejouer</button>
 </div>
 
 <div id="toast"></div>
@@ -195,7 +200,7 @@ function connectWS() {
   ws = new WebSocket(`${proto}://${location.host}`);
   ws.onopen    = () => ws.send(JSON.stringify({ type:'player_join', pin:gamePin, name:myName }));
   ws.onmessage = e => handleMsg(JSON.parse(e.data));
-  ws.onclose   = () => toast('❌ Connexion perdue');
+  ws.onclose   = () => toast('Connexion perdue');
 }
 function send(obj) { if (ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
 
@@ -216,7 +221,7 @@ function handleMsg(msg) {
       showAnswered(msg.correct, msg.points); break;
     case 'question_result': showQResult(msg); break;
     case 'game_over':   clearInterval(timerInterval); showFinal(msg.leaderboard); break;
-    case 'host_left':   toast("⚠️ L'hôte a quitté la partie"); break;
+    case 'host_left':   toast("L'hôte a quitté la partie"); break;
     case 'error':       document.getElementById('err-msg').textContent=msg.message; break;
   }
 }
@@ -233,7 +238,7 @@ function showQuestionScreen(msg) {
   else           { imgWrap.style.display='none'; }
 
   const banner = document.getElementById('q-type-banner');
-  banner.textContent = currentQuestionType==='multiple' ? '☑ Choix multiple — sélectionne puis valide' : '◉ Choix unique';
+  banner.textContent = currentQuestionType==='multiple' ? 'Choix multiple — sélectionne puis valide' : 'Choix unique';
   banner.className   = `q-type-banner ${currentQuestionType}`;
 
   const singleDiv = document.getElementById('a-buttons');
@@ -326,16 +331,16 @@ function showAnswered(correct, points) {
   if (correct===null) {
     document.getElementById('ans-icon').textContent='⏳';
     document.getElementById('ans-title').textContent='Réponse envoyée !';
-    document.getElementById('ans-sub').textContent='En attente des résultats…';
+    document.getElementById('ans-sub').textContent='En attente des résultats...';
     document.getElementById('ans-pts').textContent='';
   } else if (correct) {
     document.getElementById('ans-icon').textContent='✅';
-    document.getElementById('ans-title').textContent='Bonne réponse ! 🎉';
+    document.getElementById('ans-title').textContent='Bonne réponse !';
     document.getElementById('ans-sub').textContent='Tu as gagné';
     document.getElementById('ans-pts').textContent=`+${points} pts`;
   } else {
     document.getElementById('ans-icon').textContent=points>0?'🟡':'❌';
-    document.getElementById('ans-title').textContent=points>0?'Réponse partielle':'Mauvaise réponse…';
+    document.getElementById('ans-title').textContent=points>0?'Réponse partielle':'Mauvaise réponse...';
     document.getElementById('ans-sub').textContent=points>0?'Points partiels obtenus':'Courage pour la suite !';
     document.getElementById('ans-pts').textContent=points>0?`+${points} pts`:'+0 pts';
   }
