@@ -87,6 +87,16 @@
   .ans-wrap input[type=text]:focus { outline: none; }
   .ans-wrap label { font-size: 0.8rem; font-weight: 500; display: flex; align-items: center; gap: 6px; cursor: pointer; color: #4b5563; }
   .q-footer { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .ans-wrap { position: relative; }
+  .ans-delete-btn {
+    position: absolute; top: -8px; right: -8px;
+    background: #ef4444; color: white; border: none; border-radius: 50%;
+    width: 22px; height: 22px; font-size: 0.75rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.15s, transform 0.15s; z-index: 2;
+  }
+  .ans-wrap:hover .ans-delete-btn { opacity: 1; }
+  .ans-delete-btn:hover { transform: scale(1.15); background: #dc2626; }
   .q-footer label { font-size: 0.85rem; color: #4b5563; display: flex; align-items: center; gap: 8px; }
   .q-footer select { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; background: white; cursor: pointer; }
   .del-btn { margin-left: auto; background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-weight: 500; font-size: 0.85rem; transition: all 0.2s; }
@@ -260,47 +270,6 @@
   <div class="players-wrap" id="players-wrap"></div>
   <button class="btn btn-green" onclick="startGame()">Démarrer</button>
 </div>
-  <div class="lib-header">
-    <h1>🎮 Kahoot Clone</h1>
-    <button class="btn btn-yellow" onclick="newQuiz()">➕ Créer un quiz</button>
-  </div>
-  <div class="quiz-grid" id="quiz-grid">
-    <div class="empty-lib"><div class="icon">📭</div><div>Aucun quiz sauvegardé</div></div>
-  </div>
-</div>
-
-<!-- ══════════════════ EDITOR ══════════════════ -->
-<div id="editor" class="screen">
-  <div class="editor-header">
-    <div class="tabs" style="background:transparent;flex:1;">
-      <div class="tab" onclick="switchTab('library')">📚 Mes quiz</div>
-      <div class="tab active">✏️ Éditeur</div>
-    </div>
-    <input type="text" id="quiz-name" placeholder="Nom du quiz…" maxlength="60">
-  </div>
-  <div class="editor-body">
-    <div class="q-list" id="q-list"></div>
-  </div>
-  <div class="editor-footer">
-    <button class="btn btn-purple" onclick="addQuestion()">➕ Question</button>
-    <button class="btn btn-green"  onclick="saveQuiz()">💾 Sauvegarder</button>
-    <button class="btn btn-blue"   onclick="createGame()">🚀 Lancer la partie</button>
-  </div>
-</div>
-
-<!-- ══════════════════ LOBBY ══════════════════ -->
-<div id="lobby" class="screen">
-  <h2>🎮 En attente de joueurs…</h2>
-  <div class="pin-box">
-    <div class="lbl">Code du jeu</div>
-    <div class="pin" id="pin-display">——</div>
-    <div class="url">Rejoindre sur <strong>localhost:3000/player.html</strong></div>
-  </div>
-  <div id="player-count">0 joueur(s) connecté(s)</div>
-  <div class="players-wrap" id="players-wrap"></div>
-  <button class="btn btn-green" onclick="startGame()">▶️ Démarrer</button>
-</div>
-
 <!-- ══════════════════ QUESTION HOST ══════════════════ -->
 <div id="question-screen" class="screen">
   <div class="q-top">
@@ -527,6 +496,7 @@ function renderEditor() {
       <div class="answers-grid" id="ans-grid-${i}">
         ${q.answers.map((_, j) => `
           <div class="ans-wrap c${j % 12}">
+            ${q.answers.length > 2 ? `<button class="ans-delete-btn" onclick="removeAnswerAt(${i},${j})" title="Supprimer cette réponse">✕</button>` : ''}
             <input type="text" placeholder="Réponse ${j + 1}">
             <label>
               ${isMultiple
@@ -539,9 +509,6 @@ function renderEditor() {
 
       <div class="ans-controls">
         <button class="btn btn-purple btn-sm" onclick="addAnswer(${i})">Ajouter une réponse</button>
-        ${q.answers.length > 2
-          ? `<button class="btn btn-red btn-sm" onclick="removeAnswer(${i})">Supprimer une réponse</button>`
-          : ''}
       </div>
 
       <div class="q-footer">
@@ -744,6 +711,23 @@ function removeAnswer(i) {
     if (q.correct.length === 0) q.correct = [0];
   } else {
     if (q.correct >= q.answers.length) q.correct = q.answers.length - 1;
+  }
+  renderEditor();
+}
+
+function removeAnswerAt(i, j) {
+  syncFromDOM();
+  const q = questions[i];
+  if (q.answers.length <= 2) return toast('Minimum 2 réponses');
+  q.answers.splice(j, 1);
+  if (q.type === 'multiple') {
+    q.correct = (Array.isArray(q.correct) ? q.correct : [])
+      .filter(c => c !== j)
+      .map(c => c > j ? c - 1 : c);
+    if (q.correct.length === 0) q.correct = [0];
+  } else {
+    if (q.correct === j) q.correct = 0;
+    else if (q.correct > j) q.correct--;
   }
   renderEditor();
 }
