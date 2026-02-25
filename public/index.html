@@ -681,8 +681,7 @@ function deleteQuestion(i) {
   const url = questions[i].image;
   if (url) fetch('/api/upload', {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body:   JSON.stringify({ url }),
   }).catch(() => {});
   questions.splice(i, 1);
   renderEditor();
@@ -764,8 +763,7 @@ async function uploadImage(i, file) {
     if (questions[i].image) {
       await fetch('/api/upload', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: questions[i].image }),
+        body:   JSON.stringify({ url: questions[i].image }),
       }).catch(() => {});
     }
     questions[i].image = data.url;
@@ -785,8 +783,7 @@ async function removeImage(i) {
   const url = questions[i].image;
   if (url) await fetch('/api/upload', {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
+    body:   JSON.stringify({ url }),
   }).catch(() => {});
   questions[i].image = null;
   renderEditor();
@@ -815,10 +812,10 @@ async function saveQuiz() {
   const name = document.getElementById('quiz-name').value.trim();
   if (!name) return toast('Donne un nom au quiz');
   if (!validateQuestions()) return;
-  const res  = await fetch('/api/quizzes', {
-    method:  'POST',
+  const res = await fetch('/api/quizzes', {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ name, questions, id: currentQuizId }),
+    body:   JSON.stringify({ name, questions, id: currentQuizId }),
   });
   const data = await res.json();
   if (!res.ok) return toast(data.error);
@@ -832,10 +829,10 @@ async function createGame() {
 }
 
 async function doCreateGame() {
-  const res  = await fetch('/api/create', {
-    method:  'POST',
+  const res = await fetch('/api/create', {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ questions }),
+    body:   JSON.stringify({ questions }),
   });
   const data = await res.json();
   if (!res.ok) return toast(data.error);

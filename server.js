@@ -1,16 +1,78 @@
-const express = require('express');
-const http    = require('http');
+const express   = require('express');
+const http      = require('http');
 const WebSocket = require('ws');
-const path    = require('path');
-const fs      = require('fs');
-const multer  = require('multer');
+const path      = require('path');
+const fs        = require('fs');
+const multer    = require('multer');
+const rateLimit = require('express-rate-limit');
+const helmet    = require('helmet');
 
 const app    = express();
 const server = http.createServer(app);
 const wss    = new WebSocket.Server({ server });
 
+// ─── Helmet ───────────────────────────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:    ["'self'"],
+      scriptSrc:     ["'self'", "'unsafe-inline'"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      styleSrc:      ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc:       ["'self'", "https://fonts.gstatic.com"],
+      imgSrc:        ["'self'", "data:"],
+    },
+  },
+}));
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+
+// ─── Rate limiting ────────────────────────────────────────────────────────────
+app.use('/api/', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Trop de requêtes, réessaie plus tard.' },
+}));
+app.use('/api/upload', rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  message: { error: "Trop d'uploads." },
+}));
+app.use('/api/create', rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: 'Trop de parties créées.' },
+}));
+
+// ─── Constantes de validation ─────────────────────────────────────────────────
+const MAX_PLAYERS   = 100;
+const MAX_QUESTIONS = 50;
+const MAX_ANSWERS   = 12;
+const MAX_Q_LENGTH  = 500;
+const MAX_A_LENGTH  = 200;
+const MAX_NAME_LEN  = 60;
+
+function sanitizeQuestions(questions) {
+  if (!Array.isArray(questions) || questions.length === 0)
+    throw new Error('Questions manquantes');
+  if (questions.length > MAX_QUESTIONS)
+    throw new Error('Trop de questions (max 50)');
+  return questions.map(q => {
+    if (!q.question || typeof q.question !== 'string')
+      throw new Error('Question invalide');
+    if (!Array.isArray(q.answers) || q.answers.length < 2 || q.answers.length > MAX_ANSWERS)
+      throw new Error('Réponses invalides');
+    return {
+      question: q.question.trim().slice(0, MAX_Q_LENGTH),
+      answers:  q.answers.map(a => (typeof a === 'string' ? a : '').trim().slice(0, MAX_A_LENGTH)),
+      correct:  q.correct,
+      time:     typeof q.time === 'number' ? Math.min(Math.max(q.time, 5), 120) : 20,
+      type:     q.type === 'multiple' ? 'multiple' : 'single',
+      image:    typeof q.image === 'string' && q.image.startsWith('/uploads/') ? q.image : null,
+    };
+  });
+}
 
 // ─── Dossiers ─────────────────────────────────────────────────────────────────
 const QUIZ_DIR   = path.join(__dirname, 'quizzes');
@@ -108,8 +170,8 @@ function getLeaderboard(game) {
 }
 
 function getAnswerCounts(game) {
-  const q     = game.questions[game.currentQ];
-  const count = q ? q.answers.length : 4;
+  const q      = game.questions[game.currentQ];
+  const count  = q ? q.answers.length : 4;
   const counts = new Array(count).fill(0);
   Object.values(game.answers).forEach(a => {
     const selected = Array.isArray(a.answer) ? a.answer : [a.answer];
@@ -173,11 +235,14 @@ app.post('/api/quizzes', (req, res) => {
   const { name, questions, id } = req.body;
   if (!name || !name.trim())
     return res.status(400).json({ error: 'Nom manquant' });
-  if (!questions || questions.length === 0)
-    return res.status(400).json({ error: 'Questions manquantes' });
+  if (name.length > MAX_NAME_LEN)
+    return res.status(400).json({ error: 'Nom trop long' });
+  let sanitized;
+  try { sanitized = sanitizeQuestions(questions); }
+  catch (e) { return res.status(400).json({ error: e.message }); }
 
-  const quizId = id || Date.now().toString();
-  const file   = path.join(QUIZ_DIR, `${quizId}.json`);
+  const quizId   = id || Date.now().toString();
+  const file     = path.join(QUIZ_DIR, `${quizId}.json`);
   const existing = (id && fs.existsSync(file))
     ? JSON.parse(fs.readFileSync(file, 'utf8'))
     : null;
@@ -185,7 +250,7 @@ app.post('/api/quizzes', (req, res) => {
   const quiz = {
     id:        quizId,
     name:      name.trim(),
-    questions,
+    questions: sanitized,
     createdAt: existing ? existing.createdAt : new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -213,15 +278,16 @@ app.delete('/api/quizzes/:id', (req, res) => {
 // ─── REST : Partie ────────────────────────────────────────────────────────────
 app.post('/api/create', (req, res) => {
   const { questions } = req.body;
-  if (!questions || questions.length === 0)
-    return res.status(400).json({ error: 'Questions manquantes' });
+  let sanitized;
+  try { sanitized = sanitizeQuestions(questions); }
+  catch (e) { return res.status(400).json({ error: e.message }); }
 
   const pin = generatePin();
   games[pin] = {
     pin,
     hostWs:        null,
     players:       [],
-    questions,
+    questions:     sanitized,
     currentQ:      -1,
     state:         'lobby',
     timer:         null,
@@ -244,18 +310,24 @@ app.get('/api/check/:pin', (req, res) => {
 // ─── WebSocket ────────────────────────────────────────────────────────────────
 wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
+    if (raw.length > 4096)
+      return ws.send(JSON.stringify({ type: 'error', message: 'Message trop grand' }));
+
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
 
     const { type, pin } = msg;
+
+    if (pin && !/^\d{6}$/.test(pin)) return;
+
     const game = games[pin];
 
     if (type === 'host_join') {
       if (!game)
         return ws.send(JSON.stringify({ type: 'error', message: 'Partie introuvable' }));
-      game.hostWs  = ws;
-      ws.gamePin   = pin;
-      ws.role      = 'host';
+      game.hostWs = ws;
+      ws.gamePin  = pin;
+      ws.role     = 'host';
       ws.send(JSON.stringify({ type: 'host_joined', pin }));
       return;
     }
@@ -265,16 +337,18 @@ wss.on('connection', (ws) => {
         return ws.send(JSON.stringify({ type: 'error', message: 'Code invalide' }));
       if (game.state !== 'lobby')
         return ws.send(JSON.stringify({ type: 'error', message: 'Partie déjà commencée' }));
-      const name = (msg.name || '').trim();
+      if (game.players.length >= MAX_PLAYERS)
+        return ws.send(JSON.stringify({ type: 'error', message: 'Partie pleine' }));
+      const name = (msg.name || '').trim().slice(0, 20).replace(/[<>]/g, '');
       if (!name)
         return ws.send(JSON.stringify({ type: 'error', message: 'Nom invalide' }));
       if (game.players.find(p => p.name.toLowerCase() === name.toLowerCase()))
         return ws.send(JSON.stringify({ type: 'error', message: 'Nom déjà pris' }));
 
       const playerId = Date.now().toString() + Math.random().toString(36).slice(2);
-      ws.playerId  = playerId;
-      ws.gamePin   = pin;
-      ws.role      = 'player';
+      ws.playerId = playerId;
+      ws.gamePin  = pin;
+      ws.role     = 'player';
       game.players.push({ id: playerId, name, score: 0, ws });
       ws.send(JSON.stringify({ type: 'joined', playerId, name }));
       sendToHost(game, { type: 'player_joined', name, count: game.players.length });
@@ -467,6 +541,34 @@ function endGame(game) {
   broadcast(game,  { type: 'game_over', leaderboard });
   setTimeout(() => delete games[game.pin], 10 * 60 * 1000);
 }
+
+// ─── Nettoyage des uploads orphelins ─────────────────────────────────────────
+function cleanupOrphanUploads() {
+  try {
+    const usedImages = new Set();
+    fs.readdirSync(QUIZ_DIR)
+      .filter(f => f.endsWith('.json'))
+      .forEach(f => {
+        try {
+          const quiz = JSON.parse(fs.readFileSync(path.join(QUIZ_DIR, f), 'utf8'));
+          quiz.questions.forEach(q => {
+            if (q.image && q.image.startsWith('/uploads/'))
+              usedImages.add(path.basename(q.image));
+          });
+        } catch {}
+      });
+    fs.readdirSync(UPLOAD_DIR).forEach(file => {
+      if (!usedImages.has(file)) {
+        fs.unlinkSync(path.join(UPLOAD_DIR, file));
+        console.log(`[cleanup] 🗑  Orphelin supprimé : ${file}`);
+      }
+    });
+  } catch (e) {
+    console.error('[cleanup] Erreur :', e);
+  }
+}
+setInterval(cleanupOrphanUploads, 60 * 60 * 1000);
+cleanupOrphanUploads();
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
