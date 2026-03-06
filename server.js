@@ -587,5 +587,5 @@ setInterval(cleanupOrphanUploads, 60 * 60 * 1000);
 cleanupOrphanUploads();
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 53559;
 server.listen(PORT, () => console.log(`🎮 Kahoot Clone lancé sur http://localhost:${PORT}`));
