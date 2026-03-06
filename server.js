@@ -7,25 +7,41 @@ const multer    = require('multer');
 const rateLimit = require('express-rate-limit');
 const helmet    = require('helmet');
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
-
 const app    = express();
 const server = http.createServer(app);
 const wss    = new WebSocket.Server({ server });
 
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
 // ─── Helmet ───────────────────────────────────────────────────────────────────
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc:    ["'self'"],
-      scriptSrc:     ["'self'", "'unsafe-inline'"],
-      scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc:      ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc:       ["'self'", "https://fonts.gstatic.com"],
-      imgSrc:        ["'self'", "data:"],
+app.use((req, res, next) => {
+  const proto  = req.headers['x-forwarded-proto'] ||
+                 (req.socket.encrypted ? 'https' : 'http');
+  const host   = req.headers['x-forwarded-host'] || req.headers.host;
+  const wsProto = proto === 'https' ? 'wss' : 'ws';
+
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc:              ["'self'"],
+        scriptSrc:               ["'self'", "'unsafe-inline'"],
+        scriptSrcAttr:           ["'unsafe-inline'"],
+        styleSrc:                ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc:                 ["'self'", "https://fonts.gstatic.com"],
+        imgSrc:                  ["'self'", "data:", "blob:"],
+        connectSrc:              ["'self'", `${proto}://${host}`, `${wsProto}://${host}`],
+        upgradeInsecureRequests: null, // ← désactive l'upgrade automatique
+      },
     },
-  },
-}));
+  })(req, res, next);
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
@@ -241,20 +257,20 @@ app.post('/api/quizzes', (req, res) => {
   try { sanitized = sanitizeQuestions(questions); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
-  const quizId   = id || Date.now().toString();
+  const quizId    = id || Date.now().toString();
   const editToken = token || Math.random().toString(36).slice(2) + Date.now().toString(36);
-  const file     = path.join(QUIZ_DIR, `${quizId}.json`);
-  const existing = (id && fs.existsSync(file))
+  const file      = path.join(QUIZ_DIR, `${quizId}.json`);
+  const existing  = (id && fs.existsSync(file))
     ? JSON.parse(fs.readFileSync(file, 'utf8'))
     : null;
 
   const quiz = {
-    id:         quizId,
-    name:       name.trim(),
-    token:      existing ? existing.token : editToken,
-    questions:  sanitized,
-    createdAt:  existing ? existing.createdAt : new Date().toISOString(),
-    updatedAt:  new Date().toISOString(),
+    id:        quizId,
+    name:      name.trim(),
+    token:     existing ? existing.token : editToken,
+    questions: sanitized,
+    createdAt: existing ? existing.createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
   fs.writeFileSync(file, JSON.stringify(quiz, null, 2));
   res.json({ ok: true, id: quizId, token: quiz.token });
@@ -587,5 +603,4 @@ setInterval(cleanupOrphanUploads, 60 * 60 * 1000);
 cleanupOrphanUploads();
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 53559;
-server.listen(PORT, () => console.log(`🎮 Kahoot Clone lancé sur http://localhost:${PORT}`));
+server.listen(53559, '0.0.0.0', () => console.log(`🎮 Kahut lancé sur http://0.0.0.0:53559`));
