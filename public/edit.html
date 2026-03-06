@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kahoot Clone – Éditer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fb; color: #1a1a2e; min-height: 100vh; line-height: 1.5; }
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  #auth { align-items: center; justify-content: center; padding: 24px; }
+  .auth-box { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); max-width: 400px; width: 100%; text-align: center; }
+  .auth-box h1 { font-size: 1.5rem; margin-bottom: 8px; }
+  .auth-box p { color: #6b7280; margin-bottom: 24px; }
+  .auth-box input { width: 100%; padding: 14px 16px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 1rem; margin-bottom: 16px; }
+  .auth-box input:focus { outline: none; border-color: #4f46e5; }
+  .auth-box .btn { width: 100%; }
+
+  #editor { background: #f8f9fb; color: #1a1a2e; }
+  .editor-header { background: white; color: #1a1a2e; padding: 16px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid #e5e7eb; }
+  .editor-header input[type=text] { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; color: #1a1a2e; padding: 10px 16px; font-size: 0.95rem; font-weight: 600; width: 280px; }
+  .editor-header input { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; color: #1a1a2e; padding: 10px 16px; font-size: 0.95rem; width: 280px; }
+  .editor-header input:focus { outline: none; border-color: #4f46e5; background: white; }
+  .editor-body { padding: 24px; flex: 1; overflow-y: auto; }
+  .q-list { display: flex; flex-direction: column; gap: 20px; margin-bottom: 20px; max-width: 900px; margin-left: auto; margin-right: auto; }
+
+  .q-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid #e5e7eb; }
+  .q-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .q-card-top h3 { font-size: 0.8rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .type-badge { font-size: 0.75rem; font-weight: 600; border-radius: 20px; padding: 4px 12px; }
+  .type-badge.single   { background: #eef2ff; color: #4f46e5; }
+  .type-badge.multiple { background: #fef3c7; color: #d97706; }
+  .type-toggle { display: flex; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+  .type-toggle { display: inline-flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+  .type-toggle button { padding: 5px 14px; border: none; background: white; font-size: 0.75rem; font-weight: 500; cursor: pointer; color: #6b7280; white-space: nowrap; }
+  .type-toggle button.active-single   { background: #4f46e5; color: white; }
+  .type-toggle button.active-multiple { background: #f59e0b; color: white; }
+  .q-card textarea { width: 100%; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; font-size: 1rem; font-family: inherit; margin-bottom: 16px; resize: vertical; min-height: 70px; background: #fafbfc; }
+  .q-card textarea:focus { outline: none; border-color: #4f46e5; background: white; }
+
+  .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ans-wrap { border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; border-width: 2px; border-style: solid; }
+  .ans-wrap.c0 { background: #fef2f2; border-color: #fca5a5; }
+  .ans-wrap.c1 { background: #eff6ff; border-color: #93c5fd; }
+  .ans-wrap.c2 { background: #fefce8; border-color: #fde047; }
+  .ans-wrap.c3 { background: #f0fdf4; border-color: #86efac; }
+  .ans-wrap.c4 { background: #fff7ed; border-color: #fdba74; }
+  .ans-wrap.c5 { background: #faf5ff; border-color: #d8b4fe; }
+  .ans-wrap.c6 { background: #f9fafb; border-color: #9ca3af; }
+  .ans-wrap.c7 { background: #f9fafb; border-color: #d1d5db; }
+  .ans-wrap.c8 { background: #fef3c7; border-color: #fcd34d; }
+  .ans-wrap.c9 { background: #fff7ed; border-color: #fdba74; }
+  .ans-wrap.c10{ background: #ecfeff; border-color: #67e8f9; }
+  .ans-wrap.c11{ background: #fce7f3; border-color: #f9a8d4; }
+  .ans-wrap input[type=text] { border: none; background: transparent; font-size: 0.95rem; padding: 4px 6px; font-family: inherit; width: 100%; }
+  .ans-wrap input[type=text]:focus { outline: none; }
+  .ans-wrap label { font-size: 0.8rem; font-weight: 500; display: flex; align-items: center; gap: 6px; cursor: pointer; color: #4b5563; }
+  .q-footer { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .q-footer select { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; background: white; cursor: pointer; }
+  .q-card { position: relative; }
+  .del-btn {
+    position: absolute; top: -10px; right: -10px;
+    background: #ef4444; color: white; border: none; border-radius: 50%;
+    width: 26px; height: 26px; font-size: 0.85rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.15s, transform 0.15s; z-index: 3;
+    line-height: 1;
+  }
+  .q-card:hover .del-btn { opacity: 1; }
+  .del-btn:hover { transform: scale(1.15); background: #dc2626; }
+  .ans-controls { display: flex; gap: 8px; margin-top: 12px; }
+  .ans-delete-btn { position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 0.75rem; cursor: pointer; opacity: 0; transition: opacity 0.15s; z-index: 2; }
+  .ans-wrap:hover .ans-delete-btn { opacity: 1; }
+  .ans-wrap { position: relative; }
+  .editor-footer { padding: 16px 24px; background: white; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .btn { padding: 12px 24px; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .btn-purple { background: #7c3aed; color: white; }
+  .btn-green  { background: #22c55e; color: white; }
+  .btn-blue   { background: #3b82f6; color: white; }
+  .btn-white  { background: white;   color: #4f46e5; border: 1px solid #e5e7eb; }
+  .btn-yellow { background: #fbbf24; color: #1a1a2e; }
+
+  .q-card.has-error { border-color: #ef4444; }
+  .field-error-textarea { border-color: #ef4444 !important; background: #fef2f2 !important; }
+  .field-error-answer { background: #fffbeb !important; border-color: #f59e0b !important; }
+
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 14px 28px; border-radius: 12px; font-weight: 500; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="auth" class="screen active">
+  <div class="auth-box">
+    <h1>Chargement...</h1>
+    <p>Vérification de l'accès au quiz</p>
+  </div>
+</div>
+
+<div id="editor" class="screen">
+  <div class="editor-header">
+    <h2 style="flex:1;">Éditeur</h2>
+    <input type="text" id="quiz-name" placeholder="Nom du quiz..." maxlength="60">
+  </div>
+  <div class="editor-body">
+    <div class="link-box" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:16px;margin-bottom:20px;">
+      <p style="margin-bottom:8px;color:#1e40af;font-size:0.9rem;">📋 <strong>Lien d'édition :</strong></p>
+      <input type="text" id="edit-link" readonly style="width:100%;padding:10px 14px;border:1px solid #bfdbfe;border-radius:8px;font-size:0.85rem;background:white;" onclick="this.select()">
+    </div>
+    <div class="q-list" id="q-list"></div>
+  </div>
+  <div class="editor-footer">
+    <button class="btn btn-purple" onclick="addQuestion()">Ajouter une question</button>
+    <button class="btn btn-green"  onclick="saveQuiz()">Sauvegarder</button>
+    <button class="btn btn-blue"   onclick="createGame()">Lancer la partie</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+function getShape(i) {
+  const shapes = ['🔴','🔵','🟡','🟢','🟠','🟣','⚫','⚪','🟤','🔶','🔷','🔸'];
+  return shapes[i] ?? `(${i + 1})`;
+}
+
+let currentQuizId = null, currentToken = null, questions = [];
+let ws, currentGame = { pin: null, timerInterval: null };
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  const token = params.get('token');
+  
+  if (!id || !token) {
+    showAuthError('Paramètres manquants. Utilisez le lien d\'édition.');
+    return;
+  }
+  
+  const res = await fetch(`/api/quizzes/${id}/verify?token=${encodeURIComponent(token)}`);
+  const data = await res.json();
+  
+  if (!res.ok) {
+    showAuthError(data.error || 'Accès refusé');
+    return;
+  }
+  
+  const quiz = await fetch(`/api/quizzes/${id}`).then(r => r.json());
+  currentQuizId = id;
+  currentToken = token;
+  questions = quiz.questions;
+  document.getElementById('quiz-name').value = quiz.name;
+  document.getElementById('edit-link').value = `${location.origin}/edit.html?id=${id}&token=${token}`;
+  renderEditor();
+  showScreen('editor');
+}
+
+function showAuthError(msg) {
+  document.querySelector('#auth h1').textContent = 'Erreur';
+  document.querySelector('#auth p').textContent = msg;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function toast(msg, d = 3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), d);
+}
+
+// ─── Editor ───────────────────────────────────────────────────────────────────
+function renderEditor() {
+  const list = document.getElementById('q-list');
+  list.innerHTML = '';
+  questions.forEach((q, i) => {
+    const isMultiple = q && q.type === 'multiple';
+    const correctArr = isMultiple ? (Array.isArray(q.correct) ? q.correct : [q.correct]) : [];
+    const card = document.createElement('div');
+    card.className = 'q-card';
+    card.innerHTML = `
+      <div class="q-card-top">
+        <h3>Question ${i + 1}</h3>
+        <span class="type-badge ${isMultiple ? 'multiple' : 'single'}">${isMultiple ? 'Choix multiple' : 'Choix unique'}</span>
+      </div>
+      <div class="type-toggle">
+        <button class="${!isMultiple ? 'active-single' : ''}"   onclick="setQuestionType(${i},'single')">Choix unique</button>
+        <button class="${isMultiple  ? 'active-multiple' : ''}" onclick="setQuestionType(${i},'multiple')">Choix multiple</button>
+      </div>
+      <textarea placeholder="Texte de la question..."></textarea>
+      <div class="answers-grid">
+        ${q.answers.map((_, j) => `
+          <div class="ans-wrap c${j % 12}">
+            ${q.answers.length > 2 ? `<button class="ans-delete-btn" onclick="removeAnswerAt(${i},${j})">✕</button>` : ''}
+            <input type="text" placeholder="Réponse ${j + 1}">
+            <label>
+              ${isMultiple
+                ? `<input type="checkbox" ${correctArr.includes(j) ? 'checked' : ''}> ${getShape(j)} Bonne réponse`
+                : `<input type="radio" name="correct-${i}" ${q.correct === j ? 'checked' : ''}> ${getShape(j)} Bonne réponse`
+              }
+            </label>
+          </div>`).join('')}
+      </div>
+      <div class="ans-controls">
+        <button class="btn btn-purple btn-sm" onclick="addAnswer(${i})">Ajouter une réponse</button>
+      </div>
+      <div class="q-footer">
+        <label>Temps :
+          <select>${[5, 10, 15, 20, 30, 60].map(t => `<option value="${t}" ${q.time === t ? 'selected' : ''}>${t}s</option>`).join('')}</select>
+        </label>
+        <button class="del-btn" onclick="deleteQuestion(${i})" title="Supprimer la question">✕</button>
+      </div>`;
+    list.appendChild(card);
+    card.querySelector('textarea').value = q.question;
+    const ansInputs = card.querySelectorAll('.ans-wrap input[type=text]');
+    ansInputs.forEach((input, j) => { input.value = q.answers[j] || ''; });
+  });
+}
+
+function syncFromDOM() {
+  const cards = Array.from(document.querySelectorAll('#q-list .q-card'));
+  cards.forEach((card, i) => {
+    if (!questions[i]) return;
+    const textarea = card.querySelector('textarea');
+    if (textarea) questions[i].question = textarea.value;
+    const ansWraps = card.querySelectorAll('.ans-wrap');
+    ansWraps.forEach((wrap, j) => {
+      const input = wrap.querySelector('input[type=text]');
+      if (input) questions[i].answers[j] = input.value;
+    });
+    if (questions[i].type !== 'multiple') {
+      const radios = card.querySelectorAll('input[type=radio]');
+      radios.forEach((radio, j) => { if (radio.checked) questions[i].correct = j; });
+    }
+    if (questions[i].type === 'multiple') {
+      const checkboxes = card.querySelectorAll('input[type=checkbox]');
+      questions[i].correct = [];
+      checkboxes.forEach((cb, j) => { if (cb.checked) questions[i].correct.push(j); });
+    }
+    const select = card.querySelector('.q-footer select');
+    if (select) questions[i].time = parseInt(select.value);
+  });
+}
+
+function validateQuestions() {
+  syncFromDOM();
+  let valid = true;
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const card = document.querySelectorAll('#q-list .q-card')[i];
+    if (!card) continue;
+    if (!q.question.trim()) { card.querySelector('textarea').classList.add('field-error-textarea'); valid = false; }
+    const ansWraps = card.querySelectorAll('.ans-wrap');
+    ansWraps.forEach((wrap, j) => {
+      if (!q.answers[j] || !q.answers[j].trim()) { wrap.classList.add('field-error-answer'); valid = false; }
+    });
+    if (q.type === 'multiple' && (!Array.isArray(q.correct) || q.correct.length === 0)) valid = false;
+    if (q.type === 'single' && (q.correct == null || q.correct < 0)) valid = false;
+  }
+  if (!valid) toast('Vérifiez les champs en rouge');
+  return valid;
+}
+
+function setQuestionType(i, type) {
+  syncFromDOM();
+  questions[i].type = type;
+  if (type === 'multiple') {
+    const prev = questions[i].correct;
+    questions[i].correct = typeof prev === 'number' ? [prev] : (Array.isArray(prev) ? prev : [0]);
+  } else {
+    const prev = questions[i].correct;
+    questions[i].correct = Array.isArray(prev) ? (prev[0] ?? 0) : (typeof prev === 'number' ? prev : 0);
+  }
+  renderEditor();
+}
+
+function addQuestion() {
+  syncFromDOM();
+  questions.push({ question: '', answers: ['', '', '', ''], correct: 0, time: 20, type: 'single', image: null });
+  renderEditor();
+}
+
+function deleteQuestion(i) {
+  if (questions.length <= 1) return toast('Minimum 1 question');
+  syncFromDOM();
+  questions.splice(i, 1);
+  renderEditor();
+}
+
+function addAnswer(i) {
+  syncFromDOM();
+  if (questions[i].answers.length >= 12) return toast('Maximum 12 réponses');
+  questions[i].answers.push('');
+  renderEditor();
+}
+
+function removeAnswerAt(i, j) {
+  syncFromDOM();
+  const q = questions[i];
+  if (q.answers.length <= 2) return toast('Minimum 2 réponses');
+  q.answers.splice(j, 1);
+  if (q.type === 'multiple') {
+    q.correct = (Array.isArray(q.correct) ? q.correct : []).filter(c => c !== j).map(c => c > j ? c - 1 : c);
+    if (q.correct.length === 0) q.correct = [0];
+  } else {
+    if (q.correct === j) q.correct = 0;
+    else if (q.correct > j) q.correct--;
+  }
+  renderEditor();
+}
+
+async function saveQuiz() {
+  const name = document.getElementById('quiz-name').value.trim();
+  if (!name) return toast('Nom requis');
+  if (!validateQuestions()) return;
+  
+  const res = await fetch('/api/quizzes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, questions, id: currentQuizId, token: currentToken }),
+  });
+  const data = await res.json();
+  if (!res.ok) return toast(data.error);
+  currentToken = data.token;
+  document.getElementById('edit-link').value = `${location.origin}/edit.html?id=${currentQuizId}&token=${currentToken}`;
+  toast('Quiz sauvegardé !');
+}
+
+async function createGame() {
+  if (!validateQuestions()) return;
+  await saveQuiz();
+  
+  const res = await fetch('/api/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ questions }),
+  });
+  const data = await res.json();
+  if (!res.ok) return toast(data.error);
+  
+  window.location.href = `/index.html?pin=${data.pin}`;
+}
+
+init();
+</script>
+</body>
+</html>

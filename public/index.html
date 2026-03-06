@@ -99,8 +99,16 @@
   .ans-delete-btn:hover { transform: scale(1.15); background: #dc2626; }
   .q-footer label { font-size: 0.85rem; color: #4b5563; display: flex; align-items: center; gap: 8px; }
   .q-footer select { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; font-size: 0.9rem; background: white; cursor: pointer; }
-  .del-btn { margin-left: auto; background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-weight: 500; font-size: 0.85rem; transition: all 0.2s; }
-  .del-btn:hover { background: #fee2e2; }
+  .del-btn {
+    position: absolute; top: -10px; right: -10px;
+    background: #ef4444; color: white; border: none; border-radius: 50%;
+    width: 26px; height: 26px; font-size: 0.85rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.15s, transform 0.15s; z-index: 3;
+    line-height: 1;
+  }
+  .q-card:hover .del-btn { opacity: 1; }
+  .del-btn:hover { transform: scale(1.15); background: #dc2626; }
   .ans-controls { display: flex; gap: 8px; margin-top: 12px; }
   .editor-footer { padding: 16px 24px; background: white; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; flex-wrap: wrap; }
 
@@ -604,7 +612,7 @@ function renderEditor() {
             ${[5, 10, 15, 20, 30, 60].map(t => `<option value="${t}" ${q.time === t ? 'selected' : ''}>${t}s</option>`).join('')}
           </select>
         </label>
-        <button class="del-btn" onclick="deleteQuestion(${i})">Supprimer</button>
+        <button class="del-btn" onclick="deleteQuestion(${i})" title="Supprimer la question">✕</button>
       </div>`;
 
     list.appendChild(card);
