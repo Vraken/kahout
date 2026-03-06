@@ -7,6 +7,8 @@ const multer    = require('multer');
 const rateLimit = require('express-rate-limit');
 const helmet    = require('helmet');
 
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+
 const app    = express();
 const server = http.createServer(app);
 const wss    = new WebSocket.Server({ server });
@@ -59,10 +61,8 @@ function sanitizeQuestions(questions) {
   if (questions.length > MAX_QUESTIONS)
     throw new Error('Trop de questions (max 50)');
   return questions.map(q => {
-    if (!q.question || typeof q.question !== 'string')
-      throw new Error('Question invalide');
-    if (!Array.isArray(q.answers) || q.answers.length < 2 || q.answers.length > MAX_ANSWERS)
-      throw new Error('Réponses invalides');
+    if (typeof q.question !== 'string')
+      throw new Error('Champ "question" invalide');
     return {
       question: q.question.trim().slice(0, MAX_Q_LENGTH),
       answers:  q.answers.map(a => (typeof a === 'string' ? a : '').trim().slice(0, MAX_A_LENGTH)),
@@ -232,7 +232,7 @@ app.get('/api/quizzes/:id', (req, res) => {
 });
 
 app.post('/api/quizzes', (req, res) => {
-  const { name, questions, id } = req.body;
+  const { name, questions, id, token } = req.body;
   if (!name || !name.trim())
     return res.status(400).json({ error: 'Nom manquant' });
   if (name.length > MAX_NAME_LEN)
@@ -242,20 +242,36 @@ app.post('/api/quizzes', (req, res) => {
   catch (e) { return res.status(400).json({ error: e.message }); }
 
   const quizId   = id || Date.now().toString();
+  const editToken = token || Math.random().toString(36).slice(2) + Date.now().toString(36);
   const file     = path.join(QUIZ_DIR, `${quizId}.json`);
   const existing = (id && fs.existsSync(file))
     ? JSON.parse(fs.readFileSync(file, 'utf8'))
     : null;
 
   const quiz = {
-    id:        quizId,
-    name:      name.trim(),
-    questions: sanitized,
-    createdAt: existing ? existing.createdAt : new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    id:         quizId,
+    name:       name.trim(),
+    token:      existing ? existing.token : editToken,
+    questions:  sanitized,
+    createdAt:  existing ? existing.createdAt : new Date().toISOString(),
+    updatedAt:  new Date().toISOString(),
   };
   fs.writeFileSync(file, JSON.stringify(quiz, null, 2));
-  res.json({ ok: true, id: quizId });
+  res.json({ ok: true, id: quizId, token: quiz.token });
+});
+
+app.get('/api/quizzes/:id/verify', (req, res) => {
+  const { token } = req.query;
+  const file = path.join(QUIZ_DIR, `${req.params.id}.json`);
+  if (!fs.existsSync(file))
+    return res.status(404).json({ error: 'Quiz introuvable' });
+
+  const quiz = JSON.parse(fs.readFileSync(file, 'utf8'));
+
+  if (!token || quiz.token !== token)
+    return res.status(403).json({ error: 'Accès refusé' });
+
+  res.json({ ok: true, name: quiz.name });
 });
 
 app.delete('/api/quizzes/:id', (req, res) => {

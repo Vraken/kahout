@@ -219,23 +219,60 @@
   .modal { background: white; color: #1a1a2e; border-radius: 20px; padding: 28px; max-width: 400px; width: 100%; box-shadow: 0 24px 48px rgba(0,0,0,0.2); }
   .modal h3 { margin-bottom: 12px; font-size: 1.15rem; font-weight: 600; }
   .modal p  { margin-bottom: 24px; color: #6b7280; line-height: 1.6; }
-  .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+
+  /* ── HOME ── */
+  .home-container { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; text-align:center; }
+  .home-container h1 { font-size:2.5rem; font-weight:800; color:#1a1a2e; margin-bottom:8px; }
+  .home-subtitle { font-size:1.1rem; color:#6b7280; margin-bottom:40px; }
+  .home-form { display:flex; flex-direction:column; gap:16px; width:100%; max-width:400px; }
+  .home-form input { padding:16px 20px; border:1px solid #e5e7eb; border-radius:12px; font-size:1rem; transition:all .2s; }
+  .home-form input:focus { outline:none; border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,0.1); }
+  .btn-lg { padding:16px 32px; font-size:1.1rem; }
+  .home-links { margin-top:32px; color:#6b7280; }
+  .home-links a { color:#4f46e5; text-decoration:none; font-weight:500; }
+  .home-links a:hover { text-decoration:underline; }
+  
+  /* ── LINK BOX ── */
+  .link-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; margin-bottom: 20px; max-width: 900px; margin-left: auto; margin-right: auto; }
+  .link-box p { margin-bottom: 8px; color: #1e40af; font-size: 0.9rem; }
+  .link-box input { flex:1; padding: 10px 14px; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 0.85rem; background: white; }
+  .link-box .btn { margin-left: 8px; }
 </style>
 </head>
 <body>
 
-<!-- ══════════════════ LIBRARY ══════════════════ -->
+<!-- ══════════════════ HOME (Create) ══════════════════ -->
 <div id="library" class="screen active">
-  <div class="tabs">
-    <div class="tab active">Mes quiz</div>
-    <div class="tab" onclick="newQuiz()">Nouveau quiz</div>
-  </div>
-  <div class="lib-header">
+  <div class="home-container">
     <h1>Kahoot Clone</h1>
-    <button class="btn btn-yellow" onclick="newQuiz()">Créer un quiz</button>
+    <p class="home-subtitle">Créez votre quiz et recevez un lien unique pour le modifier</p>
+    
+    <div class="home-form">
+      <input type="text" id="home-name" placeholder="Nom de votre quiz" maxlength="60">
+      <button class="btn btn-yellow btn-lg" onclick="startCreating()">Créer un quiz</button>
+    </div>
+    
+    <div class="home-links">
+      <p>Vous avez déjà un quiz ? <a href="#" onclick="showAccessForm(); return false;">Accéder à un quiz</a></p>
+    </div>
   </div>
-  <div class="quiz-grid" id="quiz-grid">
-    <div class="empty-lib"><div class="icon">📭</div><div>Aucun quiz sauvegardé</div></div>
+  
+  <!-- Access Modal -->
+  <div class="modal-overlay" id="access-modal">
+    <div class="modal">
+      <h3>Accéder à un quiz</h3>
+      <p>Entrez le lien d'édition ou l'ID et le token.</p>
+      <div style="margin-bottom:16px;">
+        <input type="text" id="access-link" placeholder="Lien d'édition (ex: edit.html?id=xxx&token=xxx)" style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;">
+        <input type="text" id="access-id" placeholder="Ou juste l'ID du quiz" style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px;">
+        <input type="text" id="access-token" placeholder="Token" style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:10px;">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-white btn-sm" onclick="closeAccessModal()">Annuler</button>
+        <button class="btn btn-blue btn-sm" onclick="accessQuiz()">Accéder</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -243,12 +280,17 @@
 <div id="editor" class="screen">
   <div class="editor-header">
     <div class="tabs" style="background:transparent;flex:1;border:none;">
-      <div class="tab" onclick="switchTab('library')">Mes quiz</div>
+      <div class="tab" onclick="goHome()">Nouveau quiz</div>
       <div class="tab active">Éditeur</div>
     </div>
     <input type="text" id="quiz-name" placeholder="Nom du quiz..." maxlength="60">
   </div>
   <div class="editor-body">
+    <div id="link-box" class="link-box" style="display:none;">
+      <p>📋 <strong>Lien d'édition :</strong></p>
+      <input type="text" id="edit-link" readonly onclick="this.select()">
+      <button class="btn btn-sm btn-white" onclick="copyLink()">Copier</button>
+    </div>
     <div class="q-list" id="q-list"></div>
   </div>
   <div class="editor-footer">
@@ -266,9 +308,20 @@
     <div class="pin" id="pin-display">——</div>
     <div class="url">Rejoindre sur <strong>localhost:3000/player.html</strong></div>
   </div>
+  <div class="link-box" style="max-width:500px;margin-top:16px;">
+    <p style="margin-bottom:8px;">🔗 Lien direct pour les joueurs :</p>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <input type="text" id="player-link" readonly onclick="this.select()"
+             style="flex:1;padding:10px 14px;border:1px solid #bfdbfe;border-radius:8px;font-size:0.85rem;background:white;">
+      <button class="btn btn-sm btn-white" onclick="copyPlayerLink()">Copier</button>
+    </div>
+  </div>
   <div id="player-count">0 joueur(s) connecté(s)</div>
   <div class="players-wrap" id="players-wrap"></div>
-  <button class="btn btn-green" onclick="startGame()">Démarrer</button>
+  <div style="display:flex;gap:12px;">
+    <button class="btn btn-white" onclick="backToEditor()">Retour à l'éditeur</button>
+    <button class="btn btn-green" onclick="startGame()">Démarrer</button>
+  </div>
 </div>
 <!-- ══════════════════ QUESTION HOST ══════════════════ -->
 <div id="question-screen" class="screen">
@@ -308,7 +361,7 @@
   <h1>Résultats finaux</h1>
   <div class="podium"  id="podium"></div>
   <div class="full-lb" id="full-lb"></div>
-  <button class="btn btn-white" onclick="switchTab('library')">Retour aux quiz</button>
+  <button class="btn btn-white" onclick="goBackAfterGame()">Retour à l'éditeur</button>
 </div>
 
 <!-- ══════════════════ MODAL DELETE ══════════════════ -->
@@ -333,7 +386,7 @@ function getShape(i) {
 }
 
 let ws, currentGame = { pin: null, timerInterval: null, autoInterval: null };
-let currentQuizId = null, pendingDeleteId = null;
+let currentQuizId = null, currentToken = null, pendingDeleteId = null;
 let questions = [];
 
 // ─── WebSocket ────────────────────────────────────────────────────────────────
@@ -346,6 +399,17 @@ function connectWS(pin) {
 }
 function send(obj) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+
+function goBackAfterGame() {
+  if (ws) ws.close();
+  currentGame = { pin: null, timerInterval: null, autoInterval: null };
+  if (currentQuizId && currentToken) {
+    showScreen('editor');
+  } else {
+    goHome();
+  }
 }
 
 function handleMessage(msg) {
@@ -385,69 +449,92 @@ function handleMessage(msg) {
   }
 }
 
-// ─── Library ──────────────────────────────────────────────────────────────────
-async function loadLibrary() {
-  const quizzes = await fetch('/api/quizzes').then(r => r.json()).catch(() => []);
-  const grid = document.getElementById('quiz-grid');
-  if (!quizzes.length) {
-    grid.innerHTML = '<div class="empty-lib"><div class="icon">📭</div><div>Aucun quiz sauvegardé</div></div>';
+// ─── Home ───────────────────────────────────────────────────────────────────
+async function startCreating() {
+  const name = document.getElementById('home-name').value.trim();
+  if (!name) return toast('Entrez un nom pour le quiz');
+
+  const defaultQuestions = [
+    { question: '', answers: ['', '', '', ''], correct: 0, time: 20, type: 'single', image: null }
+  ];
+
+  const res = await fetch('/api/quizzes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, questions: defaultQuestions })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    toast(data.error || 'Erreur lors de la création');
     return;
   }
-  grid.innerHTML = '';
-  quizzes.forEach(q => {
-    const card = document.createElement('div');
-    card.className = 'quiz-card';
-    card.innerHTML = `
-      <h3>${q.name}</h3>
-      <div class="meta">${q.questionCount} question(s) · ${new Date(q.createdAt).toLocaleDateString('fr-FR')}</div>
-      <div class="quiz-card-actions">
-        <button class="btn btn-blue  btn-sm" onclick="editQuiz('${q.id}',event)">Éditer</button>
-        <button class="btn btn-green btn-sm" onclick="launchQuiz('${q.id}',event)">Lancer</button>
-        <button class="btn btn-red   btn-sm" onclick="askDelete('${q.id}',event)">Supprimer</button>
-      </div>`;
-    grid.appendChild(card);
-  });
+
+  window.location.href = `/edit.html?id=${data.id}&token=${data.token}`;
 }
 
-async function editQuiz(id, e) {
-  e && e.stopPropagation();
+function showAccessForm() {
+  document.getElementById('access-modal').classList.add('open');
+}
+
+function closeAccessModal() {
+  document.getElementById('access-modal').classList.remove('open');
+  document.getElementById('access-link').value = '';
+  document.getElementById('access-id').value = '';
+  document.getElementById('access-token').value = '';
+}
+
+async function accessQuiz() {
+  const link = document.getElementById('access-link').value.trim();
+  let id = document.getElementById('access-id').value.trim();
+  let token = document.getElementById('access-token').value.trim();
+  
+  if (link) {
+    const url = new URL(link, location.origin);
+    id = url.searchParams.get('id') || id;
+    token = url.searchParams.get('token') || token;
+  }
+  
+  if (!id || !token) return toast('ID et token requis');
+  
+  const res = await fetch(`/api/quizzes/${id}/verify?token=${encodeURIComponent(token)}`);
+  const data = await res.json();
+  if (!res.ok) return toast(data.error);
+  
+  currentQuizId = id;
+  currentToken = token;
+  await editQuiz(id);
+  closeAccessModal();
+}
+
+async function editQuiz(id) {
   const quiz = await fetch(`/api/quizzes/${id}`).then(r => r.json());
   currentQuizId = id;
-  questions     = quiz.questions;
+  questions = quiz.questions;
+  currentToken = quiz.token;
   document.getElementById('quiz-name').value = quiz.name;
+  const editLink = `${location.origin}/edit.html?id=${id}&token=${quiz.token}`;
+  document.getElementById('edit-link').value = editLink;
+  document.getElementById('link-box').style.display = 'flex';
   renderEditor();
   showScreen('editor');
 }
 
-async function launchQuiz(id, e) {
-  e && e.stopPropagation();
-  const quiz = await fetch(`/api/quizzes/${id}`).then(r => r.json());
-  questions = quiz.questions;
-  await doCreateGame();
-}
-
-function askDelete(id, e) {
-  e && e.stopPropagation();
-  pendingDeleteId = id;
-  document.getElementById('delete-modal').classList.add('open');
-}
-function closeModal() {
-  document.getElementById('delete-modal').classList.remove('open');
-  pendingDeleteId = null;
-}
-async function confirmDelete() {
-  if (!pendingDeleteId) return closeModal();
-  await fetch(`/api/quizzes/${pendingDeleteId}`, { method: 'DELETE' });
-  closeModal();
-  toast('Quiz supprimé');
-  loadLibrary();
+function goHome() {
+  currentQuizId = null;
+  currentToken = null;
+  questions = [];
+  document.getElementById('home-name').value = '';
+  showScreen('library');
 }
 
 // ─── Editor ───────────────────────────────────────────────────────────────────
-function newQuiz() {
+function newQuiz(name = '') {
   currentQuizId = null;
+  currentToken = null;
   questions = [{ question: '', answers: ['', '', '', ''], correct: 0, time: 20, type: 'single', image: null }];
-  document.getElementById('quiz-name').value = '';
+  document.getElementById('quiz-name').value = name;
+  document.getElementById('link-box').style.display = 'none';
   renderEditor();
   showScreen('editor');
 }
@@ -812,15 +899,35 @@ async function saveQuiz() {
   const name = document.getElementById('quiz-name').value.trim();
   if (!name) return toast('Donne un nom au quiz');
   if (!validateQuestions()) return;
+  
   const res = await fetch('/api/quizzes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:   JSON.stringify({ name, questions, id: currentQuizId }),
+    body:   JSON.stringify({ name, questions, id: currentQuizId, token: currentToken }),
   });
   const data = await res.json();
   if (!res.ok) return toast(data.error);
   currentQuizId = data.id;
+  currentToken = data.token;
+  
+  const editLink = `${location.origin}/edit.html?id=${currentQuizId}&token=${currentToken}`;
+  document.getElementById('edit-link').value = editLink;
+  document.getElementById('link-box').style.display = 'flex';
   toast('Quiz sauvegardé !');
+}
+
+function copyLink() {
+  const input = document.getElementById('edit-link');
+  input.select();
+  document.execCommand('copy');
+  toast('Lien copié !');
+}
+
+function copyPlayerLink() {
+  const input = document.getElementById('player-link');
+  input.select();
+  document.execCommand('copy');
+  toast('Lien copié !');
 }
 
 async function createGame() {
@@ -840,7 +947,15 @@ async function doCreateGame() {
   document.getElementById('pin-display').textContent  = data.pin;
   document.getElementById('players-wrap').innerHTML   = '';
   document.getElementById('player-count').textContent = '0 joueur(s) connecté(s)';
+  document.getElementById('player-link').value = `${location.origin}/player.html?pin=${data.pin}`;
   connectWS(data.pin);
+}
+
+function backToEditor() {
+  if (ws) ws.close();
+  currentGame = { pin: null, timerInterval: null, autoInterval: null };
+  document.getElementById('players-wrap').innerHTML = '';
+  showScreen('editor');
 }
 
 function startGame() {
@@ -966,7 +1081,7 @@ function showFinal(leaderboard) {
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  if (tab === 'library') { loadLibrary(); showScreen('library'); }
+  if (tab === 'library') { goHome(); }
 }
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -980,7 +1095,17 @@ function toast(msg, d = 3000) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-loadLibrary();
+const urlParams = new URLSearchParams(window.location.search);
+const pinParam = urlParams.get('pin');
+
+if (pinParam) {
+  currentGame.pin = pinParam;
+  document.getElementById('pin-display').textContent = pinParam;
+  document.getElementById('player-link').value = `${location.origin}/player.html?pin=${pinParam}`;
+  connectWS(pinParam);
+} else {
+  goHome();
+}
 </script>
 </body>
 </html>

@@ -212,7 +212,7 @@ function handleMsg(msg) {
       document.getElementById('avatar').textContent=AVATARS[Math.floor(Math.random()*AVATARS.length)];
       showScreen('lobby'); break;
     case 'question':
-      lastAnswer={given:null,correct:null,points:0}; submitted=false; multipleSelection=new Set();
+      clearInterval(timerInterval); lastAnswer={given:null,correct:null,points:0}; submitted=false; multipleSelection=new Set();
       showQuestionScreen(msg); break;
     case 'answer_received':
       clearInterval(timerInterval);
@@ -220,7 +220,7 @@ function handleMsg(msg) {
       if (msg.correct) myScore+=msg.points;
       showAnswered(msg.correct, msg.points); break;
     case 'question_result': showQResult(msg); break;
-    case 'game_over':   clearInterval(timerInterval); showFinal(msg.leaderboard); break;
+    case 'game_over':  clearInterval(timerInterval); showFinal(msg.leaderboard); break;
     case 'host_left':   toast("L'hôte a quitté la partie"); break;
     case 'error':       document.getElementById('err-msg').textContent=msg.message; break;
   }
@@ -271,7 +271,11 @@ function showQuestionScreen(msg) {
       clearInterval(timerInterval);
       if (!submitted) {
         submitted=true;
-        if (currentQuestionType==='multiple') send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:true});
+        if (currentQuestionType==='multiple') {
+          send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:true});
+        } else {
+          send({type:'answer',pin:gamePin,answer:-1,final:true});
+        }
         showAnswered(false,0);
       }
     }
@@ -312,10 +316,11 @@ function toggleCheckBtn(i) {
 }
 
 function submitSingle(idx) {
-  if (submitted) return; submitted=true;
+  if (submitted) return;
+  submitted=true;
   document.querySelectorAll('.a-btn').forEach(b=>b.disabled=true);
   send({type:'answer',pin:gamePin,answer:idx,final:true});
-  showAnswered(null,0);
+  showAnswered(null, 0);
 }
 
 function submitMultiple() {
@@ -387,6 +392,17 @@ function toast(msg,d=3000) {
 }
 document.getElementById('name-input').addEventListener('keydown', e=>{ if(e.key==='Enter') joinGame(); });
 document.getElementById('pin-input').addEventListener('keydown',  e=>{ if(e.key==='Enter') document.getElementById('name-input').focus(); });
+
+// Pré-remplir le PIN depuis l'URL si présent
+const urlPin = new URLSearchParams(window.location.search).get('pin');
+if (urlPin) {
+  const pinInput = document.getElementById('pin-input');
+  pinInput.value = urlPin;
+  pinInput.readOnly = true;
+  pinInput.style.opacity = '0.6';
+  pinInput.style.cursor  = 'not-allowed';
+  document.getElementById('name-input').focus();
+}
 </script>
 </body>
 </html>
