@@ -6,6 +6,7 @@ const fs        = require('fs');
 const multer    = require('multer');
 const rateLimit = require('express-rate-limit');
 const helmet    = require('helmet');
+const { hasBadWord } = require('./badwords');
 
 const app    = express();
 const server = http.createServer(app);
@@ -382,9 +383,11 @@ wss.on('connection', (ws) => {
       if (!game) return ws.send(JSON.stringify({ type: 'error', message: 'Code invalide' }));
       if (game.state !== 'lobby') return ws.send(JSON.stringify({ type: 'error', message: 'Partie déjà commencée' }));
       if (game.players.length >= MAX_PLAYERS) return ws.send(JSON.stringify({ type: 'error', message: 'Partie pleine' }));
-      const name = (msg.name || '').trim().slice(0, 20).replace(/[<>]/g, '');
+      let name = (msg.name || '').trim().slice(0, 20).replace(/[<>]/g, '');
       if (!name) return ws.send(JSON.stringify({ type: 'error', message: 'Nom invalide' }));
-      if (game.players.find(p => p.name.toLowerCase() === name.toLowerCase()))
+      if (hasBadWord(name)) return ws.send(JSON.stringify({ type: 'error', message: 'Nom inapproprié' }));
+      const lowerName = name.toLowerCase();
+      if (game.players.find(p => p.name.toLowerCase() === lowerName))
         return ws.send(JSON.stringify({ type: 'error', message: 'Nom déjà pris' }));
 
       const playerId = Date.now().toString() + Math.random().toString(36).slice(2);
