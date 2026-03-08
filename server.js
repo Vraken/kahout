@@ -228,7 +228,7 @@ app.get('/api/quizzes', (req, res) => {
   const quizzes = files.map(f => {
     try {
       const data = JSON.parse(fs.readFileSync(path.join(QUIZ_DIR, f), 'utf8'));
-      return { id: f.replace('.json', ''), name: data.name, questionCount: data.questions.length, createdAt: data.createdAt };
+      return { id: f.replace('.json', ''), name: data.name, questionCount: data.questions.length, createdAt: data.createdAt, lastUsedAt: data.lastUsedAt };
     } catch { return null; }
   }).filter(Boolean);
   res.json(quizzes);
@@ -263,6 +263,7 @@ app.post('/api/quizzes', (req, res) => {
     shuffle:   typeof shuffle === 'boolean' ? shuffle : false,
     createdAt: existing ? existing.createdAt : new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    lastUsedAt: existing ? existing.lastUsedAt : null,
   };
   fs.writeFileSync(file, JSON.stringify(quiz, null, 2));
   res.json({ ok: true, id: quizId, token: quiz.token });
@@ -329,6 +330,9 @@ app.post('/api/create', (req, res) => {
   }
 
   const pin = generatePin();
+  quiz.lastUsedAt = new Date().toISOString();
+  fs.writeFileSync(file, JSON.stringify(quiz, null, 2));
+
   games[pin] = {
     pin,
     hostWs:        null,
@@ -592,8 +596,114 @@ function cleanupOrphanUploads() {
     });
   } catch (e) { console.error('[cleanup] Erreur :', e); }
 }
+
+// ─── Nettoyage quizzes inutilisés ─────────────────────────────────────────────
+const QUIZ_INACTIVITY_DAYS = 30;
+
+function cleanupInactiveQuizzes() {
+  try {
+    const files = fs.readdirSync(QUIZ_DIR).filter(f => f.endsWith('.json'));
+    const now = Date.now();
+
+    files.forEach(f => {
+      try {
+        const filePath = path.join(QUIZ_DIR, f);
+        const quiz = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+        const lastUsed = quiz.lastUsedAt ? new Date(quiz.lastUsedAt).getTime() : new Date(quiz.createdAt).getTime();
+        const daysSinceLastUse = (now - lastUsed) / (1000 * 60 * 60 * 24);
+
+        if (daysSinceLastUse > QUIZ_INACTIVITY_DAYS) {
+          console.log(`[cleanup] 🗑  Quiz supprimé (inactif ${Math.round(daysSinceLastUse)}j) : ${quiz.name} (${f})`);
+          quiz.questions.forEach(q => {
+            if (q.image && q.image.startsWith('/uploads/')) {
+              const imgFile = path.join(__dirname, 'public', q.image);
+              if (fs.existsSync(imgFile)) fs.unlinkSync(imgFile);
+            }
+          });
+          fs.unlinkSync(filePath);
+        }
+      } catch {}
+    });
+  } catch (e) { console.error('[cleanup] Erreur quizzes inactifs :', e); }
+}
 setInterval(cleanupOrphanUploads, 60 * 60 * 1000);
 cleanupOrphanUploads();
+
+setInterval(cleanupInactiveQuizzes, 60 * 60 * 1000);
+cleanupInactiveQuizzes();
+
+// ─── REST : Admin ──────────────────────────────────────────────────────────────
+app.get('/api/admin/stats', (req, res) => {
+  try {
+    const files = fs.readdirSync(QUIZ_DIR).filter(f => f.endsWith('.json'));
+    let totalQuestions = 0;
+    let totalQuizzes = files.length;
+    let quizzesWithImages = 0;
+
+    files.forEach(f => {
+      try {
+        const quiz = JSON.parse(fs.readFileSync(path.join(QUIZ_DIR, f), 'utf8'));
+        totalQuestions += quiz.questions.length;
+        if (quiz.questions.some(q => q.image)) quizzesWithImages++;
+      } catch {}
+    });
+
+    const uploads = fs.readdirSync(UPLOAD_DIR).length;
+
+    res.json({
+      totalQuizzes,
+      totalQuestions,
+      quizzesWithImages,
+      totalUploads: uploads,
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.get('/api/admin/quizzes', (req, res) => {
+  try {
+    const files = fs.readdirSync(QUIZ_DIR).filter(f => f.endsWith('.json'));
+    const quizzes = files.map(f => {
+      try {
+        const filePath = path.join(QUIZ_DIR, f);
+        const stats = fs.statSync(filePath);
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        return {
+          id: f.replace('.json', ''),
+          name: data.name,
+          questionCount: data.questions.length,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          lastUsedAt: data.lastUsedAt,
+          hasImages: data.questions.some(q => q.image),
+          size: stats.size,
+        };
+      } catch { return null; }
+    }).filter(Boolean);
+    res.json(quizzes);
+  } catch (e) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+app.delete('/api/admin/quizzes/:id', (req, res) => {
+  const file = path.join(QUIZ_DIR, `${req.params.id}.json`);
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Quiz introuvable' });
+
+  try {
+    const quiz = JSON.parse(fs.readFileSync(file, 'utf8'));
+    quiz.questions.forEach(q => {
+      if (q.image && q.image.startsWith('/uploads/')) {
+        const imgFile = path.join(__dirname, 'public', q.image);
+        if (fs.existsSync(imgFile)) fs.unlinkSync(imgFile);
+      }
+    });
+  } catch {}
+  fs.unlinkSync(file);
+  res.json({ ok: true });
+});
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 server.listen(53559, '0.0.0.0', () => console.log(`🎮 Kahut lancé sur http://0.0.0.0:53559`));
