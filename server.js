@@ -29,7 +29,7 @@ app.use((req, res, next) => {
     contentSecurityPolicy: {
       directives: {
         defaultSrc:              ["'self'"],
-        scriptSrc:               ["'self'", "'unsafe-inline'"],
+        scriptSrc:               ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
         scriptSrcAttr:           ["'unsafe-inline'"],
         styleSrc:                ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc:                 ["'self'", "https://fonts.gstatic.com"],
@@ -79,21 +79,19 @@ function sanitizeQuestions(questions) {
 
     const type = ['single', 'multiple', 'truefalse'].includes(q.type) ? q.type : 'single';
 
-    // ── Vrai / Faux ──────────────────────────────────────────────────────────
     if (type === 'truefalse') {
       const correct = q.correct === 0 || q.correct === 1 ? q.correct : null;
       if (correct === null)
         throw new Error(`Question ${idx + 1} : bonne réponse Vrai/Faux manquante`);
       return {
         question: q.question.trim().slice(0, MAX_Q_LENGTH),
-        answers:  ['Vrai', 'Faux'],   // valeurs canoniques côté serveur
+        answers:  ['Vrai', 'Faux'],
         correct,
         type:     'truefalse',
         image:    typeof q.image === 'string' && q.image.startsWith('/uploads/') ? q.image : null,
       };
     }
 
-    // ── Choix multiple ───────────────────────────────────────────────────────
     if (type === 'multiple') {
       if (!Array.isArray(q.answers) || q.answers.length < 2)
         throw new Error(`Question ${idx + 1} : réponses manquantes`);
@@ -108,7 +106,6 @@ function sanitizeQuestions(questions) {
       };
     }
 
-    // ── Choix unique (défaut) ────────────────────────────────────────────────
     if (!Array.isArray(q.answers) || q.answers.length < 2)
       throw new Error(`Question ${idx + 1} : réponses manquantes`);
     if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= q.answers.length)
@@ -297,7 +294,6 @@ app.delete('/api/quizzes/:id', (req, res) => {
 });
 
 // ─── REST : Partie ────────────────────────────────────────────────────────────
-// Charge le quiz depuis le disque à partir de son ID
 app.post('/api/create', (req, res) => {
   const { quizId } = req.body;
   if (!quizId) return res.status(400).json({ error: 'quizId manquant' });
@@ -313,28 +309,21 @@ app.post('/api/create', (req, res) => {
   try { sanitized = sanitizeQuestions(quiz.questions); }
   catch (e) { return res.status(400).json({ error: e.message }); }
 
-  // Applique le mélange des réponses si activé (sauf truefalse)
   if (quiz.shuffle) {
     sanitized = sanitized.map(q => {
       if (q.type === 'truefalse') return q;
-
-      // Crée un tableau d'indices mélangé
       const indices = q.answers.map((_, i) => i);
       for (let i = indices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [indices[i], indices[j]] = [indices[j], indices[i]];
       }
-
       const newAnswers = indices.map(i => q.answers[i]);
-
-      // Recalcule correct selon le nouveau mapping
       let newCorrect;
       if (q.type === 'multiple') {
         newCorrect = q.correct.map(c => indices.indexOf(c));
       } else {
         newCorrect = indices.indexOf(q.correct);
       }
-
       return { ...q, answers: newAnswers, correct: newCorrect };
     });
   }
@@ -427,7 +416,6 @@ wss.on('connection', (ws) => {
 
       const q          = game.questions[game.currentQ];
       const isMultiple = q.type === 'multiple';
-      const isTF       = q.type === 'truefalse';
 
       if (isMultiple) {
         if (!msg.final) {
@@ -459,7 +447,6 @@ wss.on('connection', (ws) => {
           player.score += points;
         }
       } else {
-        // single ou truefalse : même logique
         isCorrect = msg.answer === q.correct;
         if (isCorrect) {
           const ratio = Math.max(0, (timeLimit - elapsed) / timeLimit);

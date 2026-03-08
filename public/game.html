@@ -7,7 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
+<!-- Import QRCode.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSQX0FslNhTDadL4O5SAGapGt4FodqL8My0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8f9fb; color: #1a1a2e; min-height: 100vh; line-height: 1.5; }
   .screen { display: none; min-height: 100vh; flex-direction: column; }
@@ -15,10 +17,16 @@
 
   /* ── LOBBY ── */
   #lobby { background: linear-gradient(135deg, #4f46e5, #7c3aed); align-items: center; justify-content: flex-start; padding: 40px 24px; gap: 24px; }
-  .pin-box { background: white; color: #1a1a2e; border-radius: 20px; padding: 28px 56px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+
+  .join-wrapper { display: flex; gap: 24px; align-items: stretch; justify-content: center; flex-wrap: wrap; max-width: 800px; width: 100%; }
+
+  .pin-box { flex: 1; min-width: 280px; background: white; color: #1a1a2e; border-radius: 20px; padding: 28px 40px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.15); display: flex; flex-direction: column; justify-content: center; }
   .pin-box .lbl { font-size: 0.85rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 1.5px; }
   .pin-box .pin { font-size: clamp(2.5rem,10vw,4.5rem); font-weight: 800; color: #4f46e5; letter-spacing: 8px; }
   .pin-box .url { font-size: 0.9rem; color: #6b7280; margin-top: 8px; }
+
+  .qr-box { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .qr-box .lbl { font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-top: 12px; }
 
   .link-box { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 16px; color: white; backdrop-filter: blur(4px); }
   .link-box input { flex:1; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 0.85rem; background: rgba(255,255,255,0.9); }
@@ -109,10 +117,19 @@
 <!-- ══════════════════ LOBBY ══════════════════ -->
 <div id="lobby" class="screen">
   <h2 style="color:white; font-size: 1.8rem;">En attente de joueurs...</h2>
-  <div class="pin-box">
-    <div class="lbl">Code du jeu</div>
-    <div class="pin" id="pin-display">——</div>
-    <div class="url">Rejoindre sur <strong id="domain-display">localhost:3000/player.html</strong></div>
+
+  <div class="join-wrapper">
+    <div class="pin-box">
+      <div class="lbl">Code du jeu</div>
+      <div class="pin" id="pin-display">——</div>
+      <div class="url">Rejoindre sur <strong id="domain-display">localhost:3000/player.html</strong></div>
+    </div>
+
+    <!-- Nouveau bloc QR Code -->
+    <div class="qr-box">
+      <div id="qrcode"></div>
+      <div class="lbl">Scanner pour rejoindre</div>
+    </div>
   </div>
 
   <div class="link-box" style="width:100%; max-width:500px; margin-top:16px;">
@@ -262,6 +279,7 @@ function backToEditor() {
     window.location.href = '/';
   }
 }
+
 // ─── Vues de la Partie ────────────────────────────────────────────────────────
 function showQuestion(msg) {
   showScreen('question-screen');
@@ -410,6 +428,16 @@ if (pinParam) {
 
   const fullPlayerUrl = `${location.origin}/player.html?pin=${pinParam}`;
   document.getElementById('player-link').value = fullPlayerUrl;
+
+  // Création du QRCode avec la librairie QRCode.js
+  new QRCode(document.getElementById("qrcode"), {
+    text: fullPlayerUrl,
+    width: 130,
+    height: 130,
+    colorDark: "#4f46e5", // Violet Kahut
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.L
+  });
 
   connectWS(pinParam);
 } else {
