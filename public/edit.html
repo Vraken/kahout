@@ -26,6 +26,11 @@
   #quiz-name { flex: 1; min-width: 180px; max-width: 320px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; color: #1a1a2e; padding: 9px 14px; font-size: 0.95rem; font-weight: 600; font-family: inherit; transition: border-color 0.2s, background 0.2s; }
   #quiz-name:focus { outline: none; border-color: #4f46e5; background: white; }
 
+  /* ── Global timer ── */
+  .global-timer-wrap { display: flex; align-items: center; gap: 8px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 6px 14px; white-space: nowrap; }
+  .global-timer-wrap label { font-size: 0.82rem; font-weight: 600; color: #4b5563; }
+  .global-timer-wrap select { border: none; background: transparent; font-size: 0.88rem; font-weight: 700; color: #4f46e5; cursor: pointer; font-family: inherit; outline: none; }
+
   #save-status { font-size: 0.78rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; white-space: nowrap; transition: all 0.3s; }
   #save-status.dirty  { background: #fef3c7; color: #92400e; }
   #save-status.saving { background: #ede9fe; color: #5b21b6; }
@@ -72,7 +77,6 @@
     box-shadow: 0 0 0 3px rgba(99,102,241,0.07);
   }
 
-  /* correct indicator: left accent bar */
   .ans-wrap::before {
     content: '';
     position: absolute;
@@ -88,7 +92,6 @@
     background: white;
   }
 
-  /* the index number bubble */
   .ans-index {
     flex-shrink: 0;
     width: 24px; height: 24px;
@@ -118,7 +121,6 @@
   .ans-wrap input[type=text]:focus { outline: none; }
   .field-error-answer { border-color: #fca5a5 !important; background: #fef2f2 !important; }
 
-  /* correct toggle button */
   .ans-correct-btn {
     flex-shrink: 0;
     width: 28px; height: 28px;
@@ -152,14 +154,13 @@
   }
   .ans-delete-btn:hover { color: #ef4444; background: #fef2f2; }
 
-  /* hide native radio/checkbox — the button replaces them */
   .ans-wrap input[type=radio],
   .ans-wrap input[type=checkbox] { display: none; }
 
   /* ── Card controls row ── */
   .ans-controls { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
 
-  /* ── Image upload (inline in controls) ── */
+  /* ── Image upload ── */
   .img-upload-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; background: #f3f4f6; border: 1px solid #e5e7eb; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #4b5563; transition: all 0.2s; white-space: nowrap; }
   .img-upload-btn:hover { background: #ede9fe; border-color: #a5b4fc; color: #4f46e5; }
   .img-upload-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
@@ -170,11 +171,10 @@
   .img-remove-btn:hover { color: #ef4444; }
   @keyframes img-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-  .q-footer { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
-  .q-footer select { border: 1px solid #e5e7eb; border-radius: 8px; padding: 7px 10px; font-size: 0.85rem; background: white; cursor: pointer; font-family: inherit; }
-
+  /* ── Delete button ── */
   .del-btn { position: absolute; top: -11px; right: -11px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 26px; height: 26px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s, transform 0.15s; z-index: 3; line-height: 1; }
-  .q-card:hover .del-btn { opacity: 1; }
+  .q-card:hover .del-btn,
+  .q-card:focus-within .del-btn { opacity: 1; }
   .del-btn:hover { transform: scale(1.15); background: #dc2626; }
 
   .move-btns { display: flex; gap: 4px; }
@@ -241,6 +241,7 @@
     .editor-footer { padding: 12px 16px; }
     #quiz-name { max-width: 100%; }
     .shortcut-hint { display: none; }
+    .global-timer-wrap { width: 100%; }
   }
 </style>
 </head>
@@ -261,6 +262,18 @@
   <div class="editor-header">
     <h2>kahut</h2>
     <input type="text" id="quiz-name" placeholder="Nom du quiz…" maxlength="60" autocomplete="off">
+    <!-- Global timer -->
+    <div class="global-timer-wrap">
+      <label for="global-timer">⏱ Temps :</label>
+      <select id="global-timer">
+        <option value="5">5 s</option>
+        <option value="10">10 s</option>
+        <option value="15">15 s</option>
+        <option value="20" selected>20 s</option>
+        <option value="30">30 s</option>
+        <option value="60">60 s</option>
+      </select>
+    </div>
     <span id="save-status" class="saved">✓ Sauvegardé</span>
     <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>S</kbd></span>
   </div>
@@ -314,10 +327,32 @@
 let toastTimer = null;
 function toast(msg, type = '', duration = 3000) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'show' + (type ? ` toast-${type}` : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+  const show = () => {
+    el.textContent = msg;
+    el.className = 'show' + (type ? ` toast-${type}` : '');
+    toastTimer = setTimeout(() => {
+      el.classList.remove('show');
+      toastTimer = null;
+    }, duration);
+  };
+  if (toastTimer) {
+    clearTimeout(toastTimer);
+    toastTimer = null;
+    el.classList.remove('show');
+    setTimeout(show, 260);
+  } else {
+    show();
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Fetch with timeout
+// ─────────────────────────────────────────────
+async function fetchWithTimeout(url, opts = {}, ms = 10000) {
+  const ctrl = new AbortController();
+  const id   = setTimeout(() => ctrl.abort(), ms);
+  try   { return await fetch(url, { ...opts, signal: ctrl.signal }); }
+  finally { clearTimeout(id); }
 }
 
 // ─────────────────────────────────────────────
@@ -368,15 +403,50 @@ function finishProgress() {
 }
 
 // ─────────────────────────────────────────────
-//  Dirty tracking
+//  Global timer helpers
+// ─────────────────────────────────────────────
+function getGlobalTime() {
+  return parseInt(document.getElementById('global-timer').value, 10);
+}
+function setGlobalTime(val) {
+  const sel = document.getElementById('global-timer');
+  // if the saved value isn't in the list, pick the closest option
+  const options = [...sel.options].map(o => parseInt(o.value, 10));
+  const closest = options.reduce((a, b) => Math.abs(b - val) < Math.abs(a - val) ? b : a);
+  sel.value = String(closest);
+}
+document.getElementById('global-timer').addEventListener('change', markDirty);
+
+// ─────────────────────────────────────────────
+//  Dirty tracking + autosave
 // ─────────────────────────────────────────────
 let isDirty = false;
+let autoSaveTimer = null;
+
 function markDirty() {
-  if (isDirty) return;
   isDirty = true;
   setSaveStatus('dirty');
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    // Vérifie silencieusement sans afficher les erreurs ni scroller
+    syncFromDOM();
+    const canSave = questions.length > 0
+      && document.getElementById('quiz-name').value.trim() !== ''
+      && questions.every(q => {
+        if (!q.question.trim()) return false;
+        if (q.answers.some(a => !a.trim())) return false;
+        if (q.type === 'multiple') return Array.isArray(q.correct) && q.correct.length > 0;
+        return q.correct != null && q.correct >= 0 && q.correct < q.answers.length;
+      });
+    if (canSave) saveQuiz();
+  }, 3000);
 }
-function markClean() { isDirty = false; setSaveStatus('saved'); }
+function markClean() {
+  isDirty = false;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = null;
+  setSaveStatus('saved');
+}
 function setSaveStatus(state) {
   const el = document.getElementById('save-status');
   el.className   = state;
@@ -400,16 +470,20 @@ async function init() {
   const token  = params.get('token');
   if (!id || !token) { showAuthError("Paramètres manquants. Utilisez le lien d'édition."); return; }
   try {
-    const res  = await fetch(`/api/quizzes/${id}/verify?token=${encodeURIComponent(token)}`);
+    const res  = await fetchWithTimeout(`/api/quizzes/${id}/verify?token=${encodeURIComponent(token)}`);
     const data = await res.json();
     if (!res.ok) { showAuthError(data.error || 'Accès refusé'); return; }
-    const quiz = await fetch(`/api/quizzes/${id}`).then(r => r.json());
+    const quiz = await fetchWithTimeout(`/api/quizzes/${id}`).then(r => r.json());
     currentQuizId = id; currentToken = token; questions = quiz.questions;
     document.getElementById('quiz-name').value = quiz.name;
     document.getElementById('edit-link').value = `${location.origin}/edit.html?id=${id}&token=${token}`;
+    // Restore global timer: use quiz.time if present, fallback to 20
+    setGlobalTime(quiz.time ?? 20);
     document.getElementById('quiz-name').addEventListener('input', markDirty);
     renderEditor(); showScreen('editor'); markClean();
-  } catch { showAuthError('Impossible de contacter le serveur.'); }
+  } catch (err) {
+    showAuthError(err.name === 'AbortError' ? 'Délai de connexion dépassé.' : 'Impossible de contacter le serveur.');
+  }
 }
 
 function showAuthError(msg) {
@@ -425,11 +499,10 @@ function showScreen(id) {
 //  Render
 // ─────────────────────────────────────────────
 function safeImage(url) {
-  try { const u = new URL(url, location.origin); if (['http:','https:'].includes(u.protocol)) return u.href; } catch(e) {}
+  try { const u = new URL(url, location.origin); if (u.origin === location.origin) return u.href; } catch(e) {}
   return '';
 }
 
-// letter labels A B C …
 function getLabel(i) { return String.fromCharCode(65 + i); }
 
 function renderEditor() {
@@ -449,17 +522,17 @@ function renderEditor() {
     const correctArr = isMultiple ? (Array.isArray(q.correct) ? q.correct : [q.correct]) : [];
 
     const card = document.createElement('div');
-    card.className    = 'q-card';
+    card.className     = 'q-card';
     card.dataset.index = i;
 
     card.innerHTML = `
-      <button class="del-btn" title="Supprimer la question">✕</button>
+      <button class="del-btn" title="Supprimer la question" aria-label="Supprimer la question ${i + 1}">✕</button>
 
       <div class="q-card-top">
         <h3>Question ${i + 1} / ${questions.length}</h3>
         <div class="move-btns">
-          <button class="move-btn" data-dir="up"   title="Monter"    ${i === 0                    ? 'disabled' : ''}>▲</button>
-          <button class="move-btn" data-dir="down" title="Descendre" ${i === questions.length - 1 ? 'disabled' : ''}>▼</button>
+          <button class="move-btn" data-dir="up"   title="Monter"    aria-label="Monter la question"    ${i === 0                    ? 'disabled' : ''}>▲</button>
+          <button class="move-btn" data-dir="down" title="Descendre" aria-label="Descendre la question" ${i === questions.length - 1 ? 'disabled' : ''}>▼</button>
         </div>
       </div>
 
@@ -481,9 +554,12 @@ function renderEditor() {
               ? `<input type="checkbox" data-ans="${j}" ${isCorrect ? 'checked' : ''}>`
               : `<input type="radio"    name="correct-${i}" data-ans="${j}" ${isCorrect ? 'checked' : ''}>`
             }
-            <button class="ans-correct-btn" data-action="toggle-correct" data-ans="${j}" title="${isCorrect ? 'Retirer comme bonne réponse' : 'Marquer comme bonne réponse'}">✓</button>
+            <button class="ans-correct-btn" data-action="toggle-correct" data-ans="${j}"
+              title="${isCorrect ? 'Retirer comme bonne réponse' : 'Marquer comme bonne réponse'}"
+              aria-label="${isCorrect ? 'Retirer comme bonne réponse' : 'Marquer comme bonne réponse'}">✓</button>
             ${q.answers.length > 2
-              ? `<button class="ans-delete-btn" data-action="del-ans" data-ans="${j}" title="Supprimer cette réponse">✕</button>`
+              ? `<button class="ans-delete-btn" data-action="del-ans" data-ans="${j}"
+                   title="Supprimer cette réponse" aria-label="Supprimer la réponse ${getLabel(j)}">✕</button>`
               : ''}
           </div>`;
         }).join('')}
@@ -495,22 +571,16 @@ function renderEditor() {
           ? `<span class="img-preview-chip">
                <img src="${img}" alt="">
                <span>Image</span>
-               <button class="img-remove-btn" data-action="remove-img" title="Supprimer l'image">✕</button>
+               <button class="img-remove-btn" data-action="remove-img" title="Supprimer l'image" aria-label="Supprimer l'image">✕</button>
              </span>`
           : `<label class="img-upload-btn" id="drop-zone-${i}" title="Ajouter une image (JPG, PNG, GIF, WebP · max 5 Mo)">
                <input type="file" accept="image/*" data-action="upload-img">
                🖼️ Image
              </label>`
         }
-      </div>
-
-      <div class="q-footer">
-        <label style="font-size:0.85rem;font-weight:500;color:#4b5563;">⏱ Temps :
-          <select>${[5,10,15,20,30,60].map(t => `<option value="${t}" ${q.time === t ? 'selected' : ''}>${t}s</option>`).join('')}</select>
-        </label>
       </div>`;
 
-    // Fill values safely
+    // Fill textarea & answer inputs
     card.querySelector('textarea').value = q.question;
     card.querySelectorAll('.ans-wrap input[type=text]').forEach((inp, j) => { inp.value = q.answers[j] || ''; });
 
@@ -553,9 +623,8 @@ function renderEditor() {
 
     card.querySelector('.del-btn').addEventListener('click', () => deleteQuestion(i));
 
-    card.querySelectorAll('textarea, input[type=text], select').forEach(el => {
-      el.addEventListener('input',  markDirty);
-      el.addEventListener('change', markDirty);
+    card.querySelectorAll('textarea, input[type=text]').forEach(el => {
+      el.addEventListener('input', markDirty);
     });
 
     list.appendChild(card);
@@ -571,7 +640,7 @@ function updateCounter() {
 }
 
 // ─────────────────────────────────────────────
-//  syncFromDOM
+//  syncFromDOM  (no timer field per card anymore)
 // ─────────────────────────────────────────────
 function syncFromDOM() {
   document.querySelectorAll('#q-list .q-card').forEach((card, i) => {
@@ -581,8 +650,6 @@ function syncFromDOM() {
     card.querySelectorAll('.ans-wrap input[type=text]').forEach((inp, j) => {
       if (questions[i].answers[j] !== undefined) questions[i].answers[j] = inp.value;
     });
-    const sel = card.querySelector('.q-footer select');
-    if (sel) questions[i].time = parseInt(sel.value);
   });
 }
 
@@ -624,6 +691,11 @@ function validateQuestions() {
 // ─────────────────────────────────────────────
 //  Question operations
 // ─────────────────────────────────────────────
+function makeQuestion() {
+  // No `time` field: the global timer covers all questions
+  return { id: crypto.randomUUID(), question: '', answers: ['','','',''], correct: 0, type: 'single', image: null };
+}
+
 function setQuestionType(i, type) {
   questions[i].type = type;
   if (type === 'multiple') {
@@ -638,7 +710,7 @@ function setQuestionType(i, type) {
 
 function addQuestion() {
   syncFromDOM();
-  questions.push({ question: '', answers: ['','','',''], correct: 0, time: 20, type: 'single', image: null });
+  questions.push(makeQuestion());
   markDirty(); renderEditor();
   requestAnimationFrame(() => {
     const cards = document.querySelectorAll('#q-list .q-card');
@@ -652,7 +724,7 @@ async function deleteQuestion(i) {
   if (!confirmed) return;
   syncFromDOM();
   const url = questions[i].image;
-  if (url) fetch('/api/upload', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) }).catch(() => {});
+  if (url) fetchWithTimeout('/api/upload', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) }).catch(() => {});
   questions.splice(i, 1);
   markDirty(); renderEditor();
   toast('Question supprimée', 'info');
@@ -685,8 +757,12 @@ function removeAnswerAt(i, j) {
     q.correct = (Array.isArray(q.correct) ? q.correct : []).filter(c => c !== j).map(c => c > j ? c - 1 : c);
     if (q.correct.length === 0) q.correct = [0];
   } else {
-    if (q.correct === j) q.correct = 0;
-    else if (q.correct > j) q.correct--;
+    if (q.correct === j) {
+      q.correct = null;
+      toast('La bonne réponse a été supprimée. Veuillez en choisir une nouvelle.', 'error', 5000);
+    } else if (q.correct > j) {
+      q.correct--;
+    }
   }
   markDirty(); renderEditor();
 }
@@ -694,7 +770,7 @@ function removeAnswerAt(i, j) {
 function removeImage(i) {
   syncFromDOM();
   const url = questions[i].image;
-  if (url) fetch('/api/upload', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) }).catch(() => {});
+  if (url) fetchWithTimeout('/api/upload', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url }) }).catch(() => {});
   questions[i].image = null;
   markDirty(); renderEditor();
 }
@@ -710,15 +786,19 @@ async function uploadImage(i, file) {
   const form = new FormData();
   form.append('image', file);
   try {
-    const res  = await fetch('/api/upload', { method:'POST', body: form });
+    const res  = await fetchWithTimeout('/api/upload', { method:'POST', body: form }, 30000);
     const data = await res.json();
     if (!res.ok) { toast(data.error || 'Erreur upload', 'error', 5000); return; }
     if (questions[i].image) {
-      await fetch('/api/upload', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: questions[i].image }) }).catch(() => {});
+      await fetchWithTimeout('/api/upload', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: questions[i].image }) }).catch(() => {});
     }
     questions[i].image = data.url;
-    markDirty(); toast(`✓ Image uploadée (${data.sizeMb} Mo)`, 'success', 2500); renderEditor();
-  } catch { toast('Impossible de contacter le serveur', 'error', 4000); }
+    markDirty();
+    toast(`✓ Image uploadée (${data.sizeMb} Mo)`, 'success', 2500);
+    renderEditor();
+  } catch (err) {
+    toast(err.name === 'AbortError' ? 'Upload trop long, réessayez' : 'Impossible de contacter le serveur', 'error', 4000);
+  }
   finally { if (dropZone) dropZone.classList.remove('uploading'); }
 }
 
@@ -731,16 +811,28 @@ async function saveQuiz() {
   if (!validateQuestions()) return;
   setSaveStatus('saving'); showProgress();
   try {
-    const res  = await fetch('/api/quizzes', {
+    const res = await fetchWithTimeout('/api/quizzes', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, questions, id: currentQuizId, token: currentToken }),
-    });
+      body: JSON.stringify({
+        name,
+        questions,
+        time: getGlobalTime(),   // single timer for the whole quiz
+        id:    currentQuizId,
+        token: currentToken,
+      }),
+    }, 15000);
     const data = await res.json();
     if (!res.ok) { toast(data.error || 'Erreur serveur', 'error'); setSaveStatus('dirty'); return; }
-    currentToken = data.token;
-    document.getElementById('edit-link').value = `${location.origin}/edit.html?id=${currentQuizId}&token=${currentToken}`;
+    currentQuizId = data.id    ?? currentQuizId;
+    currentToken  = data.token ?? currentToken;
+    const editUrl = `${location.origin}/edit.html?id=${currentQuizId}&token=${currentToken}`;
+    document.getElementById('edit-link').value = editUrl;
+    history.replaceState(null, '', editUrl);
     markClean(); toast('✓ Quiz sauvegardé !', 'success');
-  } catch { toast('Impossible de contacter le serveur', 'error'); setSaveStatus('dirty'); }
+  } catch (err) {
+    toast(err.name === 'AbortError' ? 'Sauvegarde trop longue, réessayez' : 'Impossible de contacter le serveur', 'error');
+    setSaveStatus('dirty');
+  }
   finally { finishProgress(); }
 }
 
@@ -748,13 +840,17 @@ async function createGame() {
   if (!validateQuestions()) return;
   await saveQuiz();
   if (isDirty) return;
-  const res  = await fetch('/api/create', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ questions }),
-  });
-  const data = await res.json();
-  if (!res.ok) { toast(data.error || 'Erreur serveur', 'error'); return; }
-  window.location.href = `/game.html?pin=${data.pin}`;
+  try {
+    const res  = await fetchWithTimeout('/api/create', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quizId: currentQuizId }),
+    }, 15000);
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Erreur serveur', 'error'); return; }
+    window.location.href = `/game.html?pin=${data.pin}`;
+  } catch (err) {
+    toast(err.name === 'AbortError' ? 'Délai dépassé, réessayez' : 'Impossible de contacter le serveur', 'error');
+  }
 }
 
 init();
