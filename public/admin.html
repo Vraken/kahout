@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kahut – Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #f8f9fb; color: #1a1a2e; min-height: 100vh; }
+
+  #dashboard { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+  .dash-header h1 { font-size: 1.8rem; font-weight: 800; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 40px; }
+  .stat-card { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); text-align: center; }
+  .stat-card .value { font-size: 2.5rem; font-weight: 800; color: #4f46e5; }
+  .stat-card .label { font-size: 0.9rem; color: #6b7280; margin-top: 4px; }
+
+  .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .section-header h2 { font-size: 1.3rem; font-weight: 700; }
+  .quiz-list { display: flex; flex-direction: column; gap: 12px; }
+  .quiz-item { background: white; padding: 20px; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .quiz-info { flex: 1; min-width: 200px; }
+  .quiz-info h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 4px; }
+  .quiz-meta { font-size: 0.82rem; color: #6b7280; display: flex; gap: 16px; flex-wrap: wrap; }
+  .quiz-meta span { display: flex; align-items: center; gap: 4px; }
+  .quiz-actions { display: flex; gap: 8px; }
+  .btn { padding: 10px 20px; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  .btn-gray { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+  .btn-gray:hover { background: #e5e7eb; }
+
+  .empty { text-align: center; padding: 48px; color: #9ca3af; }
+
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 14px 28px; border-radius: 12px; font-weight: 500; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+  #toast.show { opacity: 1; }
+  #toast.success { background: #16a34a; }
+  #toast.error { background: #dc2626; }
+
+  @media (max-width: 600px) {
+    #dashboard { padding: 16px; }
+    .quiz-item { flex-direction: column; align-items: flex-start; }
+    .quiz-actions { width: 100%; }
+    .quiz-actions .btn { flex: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div id="dashboard">
+  <div class="dash-header">
+    <h1>📊 Administration</h1>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="value" id="stat-quizzes">-</div>
+      <div class="label">Quiz créés</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-questions">-</div>
+      <div class="label">Questions totales</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-uploads">-</div>
+      <div class="label">Images uploadées</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-quizzes-img">-</div>
+      <div class="label">Quiz avec images</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <h2>📝 Tous les quizzes</h2>
+    <button class="btn btn-gray" onclick="loadData()">↻ Actualiser</button>
+  </div>
+
+  <div class="quiz-list" id="quiz-list"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+function $(id) { return document.getElementById(id); }
+
+function toast(msg, type = '') {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'show' + (type ? ' ' + type : '');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+async function loadData() {
+  try {
+    const [statsRes, quizzesRes] = await Promise.all([
+      fetch('/api/admin/stats'),
+      fetch('/api/admin/quizzes'),
+    ]);
+    
+    const stats = await statsRes.json();
+    const quizzes = await quizzesRes.json();
+    
+    $('stat-quizzes').textContent = stats.totalQuizzes;
+    $('stat-questions').textContent = stats.totalQuestions;
+    $('stat-uploads').textContent = stats.totalUploads;
+    $('stat-quizzes-img').textContent = stats.quizzesWithImages;
+    
+    renderQuizzes(quizzes);
+  } catch (e) {
+    toast('Erreur de chargement', 'error');
+  }
+}
+
+function renderQuizzes(quizzes) {
+  const list = $('quiz-list');
+  
+  if (quizzes.length === 0) {
+    list.innerHTML = '<div class="empty">Aucun quiz pour le moment</div>';
+    return;
+  }
+  
+  list.innerHTML = quizzes.map(q => `
+    <div class="quiz-item">
+      <div class="quiz-info">
+        <h3>${escapeHtml(q.name)}</h3>
+        <div class="quiz-meta">
+          <span>📝 ${q.questionCount} question${q.questionCount !== 1 ? 's' : ''}</span>
+          <span>💾 ${formatSize(q.size)}</span>
+          <span>🕐 ${formatDate(q.lastUsedAt || q.createdAt)}</span>
+          ${q.hasImages ? '<span>🖼️ Images</span>' : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatDate(iso) {
+  if (!iso) return 'Jamais';
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+  
+  if (diff === 0) return 'Aujourd\'hui';
+  if (diff === 1) return 'Hier';
+  if (diff < 7) return `Il y a ${diff} jours`;
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' o';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' Ko';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' Mo';
+}
+
+function copyEditLink(id) {
+  const url = `${location.origin}/edit.html?id=${id}`;
+  navigator.clipboard.writeText(url).then(() => {
+    toast('Lien copié !', 'success');
+  });
+}
+
+loadData();
+</script>
+</body>
+</html>
