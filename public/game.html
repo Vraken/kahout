@@ -256,59 +256,66 @@ function backToEditor() {
   if (ws) ws.close();
   clearInterval(currentGame.timerInterval);
   clearInterval(currentGame.autoInterval);
-  // Retourne sur l'éditeur avec l'ID et le token s'ils existent
-  let url = '/edit.html';
   if (currentQuizId && currentToken) {
-    url += `?id=${encodeURIComponent(currentQuizId)}&token=${encodeURIComponent(currentToken)}`;
+    window.location.href = `/edit.html?id=${encodeURIComponent(currentQuizId)}&token=${encodeURIComponent(currentToken)}`;
+  } else {
+    window.location.href = '/';
   }
-  window.location.href = url;
 }
-
 // ─── Vues de la Partie ────────────────────────────────────────────────────────
 function showQuestion(msg) {
   showScreen('question-screen');
   clearInterval(currentGame.autoInterval);
-  document.getElementById('q-num').textContent = `Question ${msg.index + 1} / ${msg.total}`;
+  document.getElementById('q-num').textContent  = `Question ${msg.index + 1} / ${msg.total}`;
   document.getElementById('q-text').textContent = msg.question;
-  document.getElementById('ans-count').textContent = '0 / ? réponses';
+  document.getElementById('ans-count').textContent    = '0 / ? réponses';
   document.getElementById('progress-fill').style.width = '0%';
 
   const pill = document.getElementById('q-type-pill');
-  pill.textContent = msg.questionType === 'multiple' ? 'Choix multiple' : 'Choix unique';
+  pill.textContent =
+    msg.questionType === 'multiple'  ? 'Choix multiple' :
+    msg.questionType === 'truefalse' ? 'Vrai / Faux'    : 'Choix unique';
 
   const imgPanel = document.getElementById('q-image-panel');
   const imgEl    = document.getElementById('q-image');
   const body     = document.getElementById('q-body');
   if (msg.image) {
-    imgEl.src = msg.image;
-    imgPanel.style.display = 'flex';
-    body.classList.add('has-image');
+    imgEl.src = msg.image; imgPanel.style.display = 'flex'; body.classList.add('has-image');
   } else {
-    imgPanel.style.display = 'none';
-    body.classList.remove('has-image');
+    imgPanel.style.display = 'none'; body.classList.remove('has-image');
   }
 
   const grid = document.getElementById('a-grid');
   grid.innerHTML = '';
-  const n = msg.answers.length;
-  grid.style.gridTemplateColumns = n <= 4 ? '1fr 1fr' : n <= 6 ? '1fr 1fr 1fr' : '1fr 1fr 1fr 1fr';
 
-  msg.answers.forEach((a, i) => {
-    const div = document.createElement('div');
-    div.className = `a-block c${i % 12}`;
-    div.innerHTML = `<span class="ico">${getShape(i)}</span><span>${a}</span>`;
-    grid.appendChild(div);
-  });
+  if (msg.questionType === 'truefalse') {
+    grid.style.gridTemplateColumns = '1fr 1fr';
+    [{ label: '✅ Vrai', color: '#22c55e' }, { label: '❌ Faux', color: '#ef4444' }].forEach((item, i) => {
+      const div = document.createElement('div');
+      div.className = `a-block c${i}`;
+      div.style.background = item.color;
+      div.style.justifyContent = 'center';
+      div.style.fontSize = '1.3rem';
+      div.innerHTML = `<span>${item.label}</span>`;
+      grid.appendChild(div);
+    });
+  } else {
+    const n = msg.answers.length;
+    grid.style.gridTemplateColumns = n <= 4 ? '1fr 1fr' : n <= 6 ? '1fr 1fr 1fr' : '1fr 1fr 1fr 1fr';
+    msg.answers.forEach((a, i) => {
+      const div = document.createElement('div');
+      div.className = `a-block c${i % 12}`;
+      div.innerHTML = `<span class="ico">${getShape(i)}</span><span>${a}</span>`;
+      grid.appendChild(div);
+    });
+  }
 
   let t = msg.time;
   const timerEl = document.getElementById('timer');
-  timerEl.textContent = t;
-  timerEl.classList.remove('urgent');
+  timerEl.textContent = t; timerEl.classList.remove('urgent');
   clearInterval(currentGame.timerInterval);
-
   currentGame.timerInterval = setInterval(() => {
-    t--;
-    timerEl.textContent = t;
+    t--; timerEl.textContent = t;
     if (t <= 5) timerEl.classList.add('urgent');
     if (t <= 0) clearInterval(currentGame.timerInterval);
   }, 1000);
@@ -389,17 +396,16 @@ function toast(msg, d = 3000) {
 }
 
 // ─── Initialisation de la Page ────────────────────────────────────────────────
-const params = new URLSearchParams(window.location.search);
-const pinParam = params.get('pin');
-currentQuizId = params.get('id') || '';
-currentToken = params.get('token') || '';
+const params      = new URLSearchParams(window.location.search);
+const pinParam    = params.get('pin');
+currentQuizId     = params.get('id')    || '';
+currentToken      = params.get('token') || '';
 
 if (pinParam) {
   currentGame.pin = pinParam;
   document.getElementById('pin-display').textContent = pinParam;
 
-  // Rendu de l'URL pour faciliter le jeu (masquer http:// ou https://)
-  const hostUrl = `${location.host}/player.html`;
+  const hostUrl       = `${location.host}/player.html`;
   document.getElementById('domain-display').textContent = hostUrl;
 
   const fullPlayerUrl = `${location.origin}/player.html?pin=${pinParam}`;
@@ -407,8 +413,7 @@ if (pinParam) {
 
   connectWS(pinParam);
 } else {
-  // Si on essaie d'ouvrir index.html sans "pin", on renvoie vers l'éditeur.
-  window.location.href = '/edit.html';
+  window.location.href = '/';
 }
 </script>
 </body>

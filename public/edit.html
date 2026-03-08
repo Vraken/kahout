@@ -26,10 +26,20 @@
   #quiz-name { flex: 1; min-width: 180px; max-width: 320px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; color: #1a1a2e; padding: 9px 14px; font-size: 0.95rem; font-weight: 600; font-family: inherit; transition: border-color 0.2s, background 0.2s; }
   #quiz-name:focus { outline: none; border-color: #4f46e5; background: white; }
 
-  /* ── Global timer ── */
-  .global-timer-wrap { display: flex; align-items: center; gap: 8px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 6px 14px; white-space: nowrap; }
-  .global-timer-wrap label { font-size: 0.82rem; font-weight: 600; color: #4b5563; }
-  .global-timer-wrap select { border: none; background: transparent; font-size: 0.88rem; font-weight: 700; color: #4f46e5; cursor: pointer; font-family: inherit; outline: none; }
+  /* ── Global controls (timer + shuffle) ── */
+  .global-ctrl-wrap { display: flex; align-items: center; gap: 8px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 6px 14px; white-space: nowrap; }
+  .global-ctrl-wrap label { font-size: 0.82rem; font-weight: 600; color: #4b5563; }
+  .global-ctrl-wrap select { border: none; background: transparent; font-size: 0.88rem; font-weight: 700; color: #4f46e5; cursor: pointer; font-family: inherit; outline: none; }
+
+  /* shuffle toggle */
+  .shuffle-wrap { display: flex; align-items: center; gap: 8px; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 6px 14px; white-space: nowrap; cursor: pointer; user-select: none; transition: background 0.2s, border-color 0.2s; }
+  .shuffle-wrap:hover { background: #ede9fe; border-color: #a5b4fc; }
+  .shuffle-wrap.on { background: #ede9fe; border-color: #a5b4fc; }
+  .shuffle-wrap input[type=checkbox] { display: none; }
+  .shuffle-label { font-size: 0.82rem; font-weight: 600; color: #4b5563; }
+  .shuffle-wrap.on .shuffle-label { color: #4f46e5; }
+  .shuffle-pill { font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: #e5e7eb; color: #6b7280; transition: background 0.2s, color 0.2s; }
+  .shuffle-wrap.on .shuffle-pill { background: #4f46e5; color: white; }
 
   #save-status { font-size: 0.78rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; white-space: nowrap; transition: all 0.3s; }
   #save-status.dirty  { background: #fef3c7; color: #92400e; }
@@ -47,10 +57,12 @@
   .q-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .q-card-top h3 { font-size: 0.78rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; }
 
+  /* ── Type toggle (3 modes) ── */
   .type-toggle { display: inline-flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
   .type-toggle button { padding: 5px 14px; border: none; background: white; font-size: 0.75rem; font-weight: 600; cursor: pointer; color: #6b7280; white-space: nowrap; transition: background 0.15s, color 0.15s; }
   .type-toggle button.active-single   { background: #4f46e5; color: white; }
   .type-toggle button.active-multiple { background: #f59e0b; color: white; }
+  .type-toggle button.active-truefalse { background: #10b981; color: white; }
 
   .q-card textarea { width: 100%; border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; font-size: 1rem; font-family: inherit; margin-bottom: 14px; resize: vertical; min-height: 68px; background: #fafbfc; transition: border-color 0.2s, background 0.2s; }
   .q-card textarea:focus { outline: none; border-color: #6366f1; background: white; }
@@ -58,6 +70,30 @@
 
   /* ── Answers ── */
   .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* True/False: two big buttons side by side */
+  .tf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tf-btn {
+    padding: 18px 12px;
+    border-radius: 12px;
+    border: 2px solid #e5e7eb;
+    background: #f9fafb;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.1s;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .tf-btn:hover { transform: translateY(-1px); }
+  .tf-btn.tf-true  { }
+  .tf-btn.tf-false { }
+  .tf-btn.selected-true  { border-color: #22c55e; background: #f0fdf4; color: #15803d; }
+  .tf-btn.selected-false { border-color: #ef4444; background: #fef2f2; color: #b91c1c; }
 
   .ans-wrap {
     border-radius: 10px;
@@ -71,87 +107,23 @@
     transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
     cursor: text;
   }
-  .ans-wrap:focus-within {
-    border-color: #a5b4fc;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.07);
-  }
-
-  .ans-wrap::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 4px;
-    border-radius: 8px 0 0 8px;
-    background: transparent;
-    transition: background 0.2s;
-  }
+  .ans-wrap:focus-within { border-color: #a5b4fc; background: white; box-shadow: 0 0 0 3px rgba(99,102,241,0.07); }
+  .ans-wrap::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 8px 0 0 8px; background: transparent; transition: background 0.2s; }
   .ans-wrap.correct::before { background: #22c55e; }
-  .ans-wrap.correct {
-    border-color: #bbf7d0;
-    background: white;
-  }
+  .ans-wrap.correct { border-color: #bbf7d0; background: white; }
 
-  .ans-index {
-    flex-shrink: 0;
-    width: 24px; height: 24px;
-    border-radius: 6px;
-    background: #e5e7eb;
-    color: #6b7280;
-    font-size: 0.72rem;
-    font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.2s, color 0.2s;
-    user-select: none;
-  }
-  .ans-wrap.correct .ans-index {
-    background: #22c55e;
-    color: white;
-  }
+  .ans-index { flex-shrink: 0; width: 24px; height: 24px; border-radius: 6px; background: #e5e7eb; color: #6b7280; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: background 0.2s, color 0.2s; user-select: none; }
+  .ans-wrap.correct .ans-index { background: #22c55e; color: white; }
 
-  .ans-wrap input[type=text] {
-    flex: 1;
-    border: none;
-    background: transparent;
-    font-size: 0.92rem;
-    font-family: inherit;
-    color: #1a1a2e;
-    min-width: 0;
-  }
+  .ans-wrap input[type=text] { flex: 1; border: none; background: transparent; font-size: 0.92rem; font-family: inherit; color: #1a1a2e; min-width: 0; }
   .ans-wrap input[type=text]:focus { outline: none; }
   .field-error-answer { border-color: #fca5a5 !important; background: #fef2f2 !important; }
 
-  .ans-correct-btn {
-    flex-shrink: 0;
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    border: 1.5px solid #d1d5db;
-    background: white;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.75rem;
-    color: #d1d5db;
-    transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s;
-  }
+  .ans-correct-btn { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #d1d5db; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #d1d5db; transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s; }
   .ans-correct-btn:hover { border-color: #22c55e; color: #22c55e; transform: scale(1.1); }
-  .ans-wrap.correct .ans-correct-btn {
-    border-color: #22c55e;
-    background: #22c55e;
-    color: white;
-  }
+  .ans-wrap.correct .ans-correct-btn { border-color: #22c55e; background: #22c55e; color: white; }
 
-  .ans-delete-btn {
-    flex-shrink: 0;
-    width: 24px; height: 24px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.7rem;
-    color: #d1d5db;
-    transition: color 0.15s, background 0.15s;
-  }
+  .ans-delete-btn { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #d1d5db; transition: color 0.15s, background 0.15s; }
   .ans-delete-btn:hover { color: #ef4444; background: #fef2f2; }
 
   .ans-wrap input[type=radio],
@@ -236,12 +208,14 @@
 
   @media (max-width: 600px) {
     .answers-grid { grid-template-columns: 1fr; }
+    .tf-grid { grid-template-columns: 1fr 1fr; }
     .editor-header { padding: 12px 16px; }
     .editor-body   { padding: 16px; }
     .editor-footer { padding: 12px 16px; }
     #quiz-name { max-width: 100%; }
     .shortcut-hint { display: none; }
-    .global-timer-wrap { width: 100%; }
+    .global-ctrl-wrap,
+    .shuffle-wrap { width: 100%; }
   }
 </style>
 </head>
@@ -262,8 +236,9 @@
   <div class="editor-header">
     <h2>kahut</h2>
     <input type="text" id="quiz-name" placeholder="Nom du quiz…" maxlength="60" autocomplete="off">
+
     <!-- Global timer -->
-    <div class="global-timer-wrap">
+    <div class="global-ctrl-wrap">
       <label for="global-timer">⏱ Temps :</label>
       <select id="global-timer">
         <option value="5">5 s</option>
@@ -274,6 +249,14 @@
         <option value="60">60 s</option>
       </select>
     </div>
+
+    <!-- Shuffle toggle -->
+    <label class="shuffle-wrap" id="shuffle-wrap" title="Mélanger l'ordre des réponses à chaque affichage">
+      <input type="checkbox" id="shuffle-toggle">
+      <span class="shuffle-label">🔀 Mélange</span>
+      <span class="shuffle-pill" id="shuffle-pill">OFF</span>
+    </label>
+
     <span id="save-status" class="saved">✓ Sauvegardé</span>
     <span class="shortcut-hint"><kbd>Ctrl</kbd>+<kbd>S</kbd></span>
   </div>
@@ -330,10 +313,7 @@ function toast(msg, type = '', duration = 3000) {
   const show = () => {
     el.textContent = msg;
     el.className = 'show' + (type ? ` toast-${type}` : '');
-    toastTimer = setTimeout(() => {
-      el.classList.remove('show');
-      toastTimer = null;
-    }, duration);
+    toastTimer = setTimeout(() => { el.classList.remove('show'); toastTimer = null; }, duration);
   };
   if (toastTimer) {
     clearTimeout(toastTimer);
@@ -403,19 +383,38 @@ function finishProgress() {
 }
 
 // ─────────────────────────────────────────────
-//  Global timer helpers
+//  Global timer
 // ─────────────────────────────────────────────
 function getGlobalTime() {
   return parseInt(document.getElementById('global-timer').value, 10);
 }
 function setGlobalTime(val) {
-  const sel = document.getElementById('global-timer');
-  // if the saved value isn't in the list, pick the closest option
+  const sel     = document.getElementById('global-timer');
   const options = [...sel.options].map(o => parseInt(o.value, 10));
   const closest = options.reduce((a, b) => Math.abs(b - val) < Math.abs(a - val) ? b : a);
   sel.value = String(closest);
 }
 document.getElementById('global-timer').addEventListener('change', markDirty);
+
+// ─────────────────────────────────────────────
+//  Shuffle toggle
+// ─────────────────────────────────────────────
+function getShuffle() {
+  return document.getElementById('shuffle-toggle').checked;
+}
+function setShuffle(val) {
+  const chk  = document.getElementById('shuffle-toggle');
+  const wrap = document.getElementById('shuffle-wrap');
+  const pill = document.getElementById('shuffle-pill');
+  chk.checked = !!val;
+  wrap.classList.toggle('on', !!val);
+  pill.textContent = val ? 'ON' : 'OFF';
+}
+
+document.getElementById('shuffle-toggle').addEventListener('change', () => {
+  setShuffle(getShuffle()); // refresh pill + class
+  markDirty();
+});
 
 // ─────────────────────────────────────────────
 //  Dirty tracking + autosave
@@ -428,12 +427,12 @@ function markDirty() {
   setSaveStatus('dirty');
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(() => {
-    // Vérifie silencieusement sans afficher les erreurs ni scroller
     syncFromDOM();
     const canSave = questions.length > 0
       && document.getElementById('quiz-name').value.trim() !== ''
       && questions.every(q => {
         if (!q.question.trim()) return false;
+        if (q.type === 'truefalse') return q.correct === 0 || q.correct === 1;
         if (q.answers.some(a => !a.trim())) return false;
         if (q.type === 'multiple') return Array.isArray(q.correct) && q.correct.length > 0;
         return q.correct != null && q.correct >= 0 && q.correct < q.answers.length;
@@ -477,8 +476,8 @@ async function init() {
     currentQuizId = id; currentToken = token; questions = quiz.questions;
     document.getElementById('quiz-name').value = quiz.name;
     document.getElementById('edit-link').value = `${location.origin}/edit.html?id=${id}&token=${token}`;
-    // Restore global timer: use quiz.time if present, fallback to 20
     setGlobalTime(quiz.time ?? 20);
+    setShuffle(quiz.shuffle ?? false);
     document.getElementById('quiz-name').addEventListener('input', markDirty);
     renderEditor(); showScreen('editor'); markClean();
   } catch (err) {
@@ -505,6 +504,55 @@ function safeImage(url) {
 
 function getLabel(i) { return String.fromCharCode(65 + i); }
 
+// Builds the answer area depending on question type
+function buildAnswersHTML(q, i) {
+  if (q.type === 'truefalse') {
+    const trueSelected  = q.correct === 0;
+    const falseSelected = q.correct === 1;
+    return `
+      <div class="tf-grid">
+        <button class="tf-btn tf-true  ${trueSelected  ? 'selected-true'  : ''}"
+          data-action="tf-pick" data-val="0"
+          aria-pressed="${trueSelected}"
+          aria-label="Vrai">
+          ✅ Vrai
+        </button>
+        <button class="tf-btn tf-false ${falseSelected ? 'selected-false' : ''}"
+          data-action="tf-pick" data-val="1"
+          aria-pressed="${falseSelected}"
+          aria-label="Faux">
+          ❌ Faux
+        </button>
+      </div>`;
+  }
+
+  const isMultiple = q.type === 'multiple';
+  const correctArr = isMultiple ? (Array.isArray(q.correct) ? q.correct : [q.correct]) : [];
+
+  return `
+    <div class="answers-grid">
+      ${q.answers.map((_, j) => {
+        const isCorrect = isMultiple ? correctArr.includes(j) : q.correct === j;
+        return `
+        <div class="ans-wrap ${isCorrect ? 'correct' : ''}">
+          <span class="ans-index">${getLabel(j)}</span>
+          <input type="text" placeholder="Réponse ${getLabel(j)}">
+          ${isMultiple
+            ? `<input type="checkbox" data-ans="${j}" ${isCorrect ? 'checked' : ''}>`
+            : `<input type="radio"    name="correct-${i}" data-ans="${j}" ${isCorrect ? 'checked' : ''}>`
+          }
+          <button class="ans-correct-btn" data-action="toggle-correct" data-ans="${j}"
+            title="${isCorrect ? 'Retirer comme bonne réponse' : 'Marquer comme bonne réponse'}"
+            aria-label="${isCorrect ? 'Retirer comme bonne réponse' : 'Marquer comme bonne réponse'}">✓</button>
+          ${q.answers.length > 2
+            ? `<button class="ans-delete-btn" data-action="del-ans" data-ans="${j}"
+                 title="Supprimer cette réponse" aria-label="Supprimer la réponse ${getLabel(j)}">✕</button>`
+            : ''}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
 function renderEditor() {
   const body    = document.getElementById('editor-body');
   const scrollY = body.scrollTop;
@@ -518,8 +566,7 @@ function renderEditor() {
 
   questions.forEach((q, i) => {
     const img        = q.image ? safeImage(q.image) : null;
-    const isMultiple = q.type === 'multiple';
-    const correctArr = isMultiple ? (Array.isArray(q.correct) ? q.correct : [q.correct]) : [];
+    const isTF       = q.type === 'truefalse';
 
     const card = document.createElement('div');
     card.className     = 'q-card';
@@ -537,36 +584,17 @@ function renderEditor() {
       </div>
 
       <div class="type-toggle">
-        <button class="${!isMultiple ? 'active-single'   : ''}" data-type="single">Choix unique</button>
-        <button class="${ isMultiple ? 'active-multiple' : ''}" data-type="multiple">Choix multiple</button>
+        <button class="${q.type === 'single'    ? 'active-single'    : ''}" data-type="single">Choix unique</button>
+        <button class="${q.type === 'multiple'  ? 'active-multiple'  : ''}" data-type="multiple">Choix multiple</button>
+        <button class="${q.type === 'truefalse' ? 'active-truefalse' : ''}" data-type="truefalse">Vrai / Faux</button>
       </div>
 
       <textarea placeholder="Texte de la question…" rows="2"></textarea>
 
-      <div class="answers-grid">
-        ${q.answers.map((_, j) => {
-          const isCorrect = isMultiple ? correctArr.includes(j) : q.correct === j;
-          return `
-          <div class="ans-wrap ${isCorrect ? 'correct' : ''}">
-            <span class="ans-index">${getLabel(j)}</span>
-            <input type="text" placeholder="Réponse ${getLabel(j)}">
-            ${isMultiple
-              ? `<input type="checkbox" data-ans="${j}" ${isCorrect ? 'checked' : ''}>`
-              : `<input type="radio"    name="correct-${i}" data-ans="${j}" ${isCorrect ? 'checked' : ''}>`
-            }
-            <button class="ans-correct-btn" data-action="toggle-correct" data-ans="${j}"
-              title="${isCorrect ? 'Retirer comme bonne réponse' : 'Marquer comme bonne réponse'}"
-              aria-label="${isCorrect ? 'Retirer comme bonne réponse' : 'Marquer comme bonne réponse'}">✓</button>
-            ${q.answers.length > 2
-              ? `<button class="ans-delete-btn" data-action="del-ans" data-ans="${j}"
-                   title="Supprimer cette réponse" aria-label="Supprimer la réponse ${getLabel(j)}">✕</button>`
-              : ''}
-          </div>`;
-        }).join('')}
-      </div>
+      ${buildAnswersHTML(q, i)}
 
       <div class="ans-controls">
-        <button class="btn btn-purple btn-sm" data-action="add-ans">＋ Réponse</button>
+        ${!isTF ? `<button class="btn btn-purple btn-sm" data-action="add-ans">＋ Réponse</button>` : ''}
         ${img
           ? `<span class="img-preview-chip">
                <img src="${img}" alt="">
@@ -580,9 +608,11 @@ function renderEditor() {
         }
       </div>`;
 
-    // Fill textarea & answer inputs
+    // Fill textarea & answer inputs (not applicable for truefalse)
     card.querySelector('textarea').value = q.question;
-    card.querySelectorAll('.ans-wrap input[type=text]').forEach((inp, j) => { inp.value = q.answers[j] || ''; });
+    if (!isTF) {
+      card.querySelectorAll('.ans-wrap input[type=text]').forEach((inp, j) => { inp.value = q.answers[j] || ''; });
+    }
 
     // ── Event delegation ──
     card.addEventListener('click', e => {
@@ -590,8 +620,16 @@ function renderEditor() {
       const action = t?.dataset.action;
       if (!action) return;
 
+      // True / False pick
+      if (action === 'tf-pick') {
+        syncFromDOM();
+        questions[i].correct = parseInt(t.dataset.val, 10);
+        markDirty(); renderEditor(); return;
+      }
+
       if (action === 'toggle-correct') {
-        const j = parseInt(t.dataset.ans);
+        const j          = parseInt(t.dataset.ans);
+        const isMultiple = questions[i].type === 'multiple';
         syncFromDOM();
         if (isMultiple) {
           const idx = questions[i].correct.indexOf(j);
@@ -603,6 +641,7 @@ function renderEditor() {
         }
         markDirty(); renderEditor(); return;
       }
+
       if (action === 'del-ans')    removeAnswerAt(i, parseInt(t.dataset.ans));
       if (action === 'add-ans')    addAnswer(i);
       if (action === 'remove-img') removeImage(i);
@@ -640,16 +679,19 @@ function updateCounter() {
 }
 
 // ─────────────────────────────────────────────
-//  syncFromDOM  (no timer field per card anymore)
+//  syncFromDOM
 // ─────────────────────────────────────────────
 function syncFromDOM() {
   document.querySelectorAll('#q-list .q-card').forEach((card, i) => {
     if (!questions[i]) return;
     const ta = card.querySelector('textarea');
     if (ta) questions[i].question = ta.value;
-    card.querySelectorAll('.ans-wrap input[type=text]').forEach((inp, j) => {
-      if (questions[i].answers[j] !== undefined) questions[i].answers[j] = inp.value;
-    });
+    // only sync text inputs for non-truefalse questions
+    if (questions[i].type !== 'truefalse') {
+      card.querySelectorAll('.ans-wrap input[type=text]').forEach((inp, j) => {
+        if (questions[i].answers[j] !== undefined) questions[i].answers[j] = inp.value;
+      });
+    }
   });
 }
 
@@ -674,12 +716,16 @@ function validateQuestions() {
 
     if (!q.question.trim()) { card.querySelector('textarea').classList.add('field-error-textarea'); cardError = true; }
 
-    card.querySelectorAll('.ans-wrap').forEach((wrap, j) => {
-      if (!q.answers[j]?.trim()) { wrap.classList.add('field-error-answer'); cardError = true; }
-    });
-
-    if (q.type === 'multiple' && (!Array.isArray(q.correct) || q.correct.length === 0)) cardError = true;
-    if (q.type === 'single'   && (q.correct == null || q.correct < 0 || q.correct >= q.answers.length)) cardError = true;
+    if (q.type === 'truefalse') {
+      // correct must be 0 (Vrai) or 1 (Faux)
+      if (q.correct !== 0 && q.correct !== 1) cardError = true;
+    } else {
+      card.querySelectorAll('.ans-wrap').forEach((wrap, j) => {
+        if (!q.answers[j]?.trim()) { wrap.classList.add('field-error-answer'); cardError = true; }
+      });
+      if (q.type === 'multiple' && (!Array.isArray(q.correct) || q.correct.length === 0)) cardError = true;
+      if (q.type === 'single'   && (q.correct == null || q.correct < 0 || q.correct >= q.answers.length)) cardError = true;
+    }
 
     if (cardError) { card.classList.add('has-error'); valid = false; if (!firstErrorCard) firstErrorCard = card; }
   });
@@ -692,19 +738,33 @@ function validateQuestions() {
 //  Question operations
 // ─────────────────────────────────────────────
 function makeQuestion() {
-  // No `time` field: the global timer covers all questions
   return { id: crypto.randomUUID(), question: '', answers: ['','','',''], correct: 0, type: 'single', image: null };
 }
 
 function setQuestionType(i, type) {
-  questions[i].type = type;
-  if (type === 'multiple') {
-    const prev = questions[i].correct;
-    questions[i].correct = typeof prev === 'number' ? [prev] : (Array.isArray(prev) ? prev : [0]);
-  } else {
-    const prev = questions[i].correct;
-    questions[i].correct = Array.isArray(prev) ? (prev[0] ?? 0) : (typeof prev === 'number' ? prev : 0);
+  const prev = questions[i];
+
+  if (type === 'truefalse') {
+    // truefalse stores correct as 0 (Vrai) or 1 (Faux), no free-text answers
+    questions[i] = { ...prev, type: 'truefalse', answers: [], correct: null };
+    markDirty(); renderEditor(); return;
   }
+
+  if (prev.type === 'truefalse') {
+    // coming back from truefalse: restore default answers
+    questions[i] = { ...prev, type, answers: ['','','',''], correct: type === 'multiple' ? [0] : 0 };
+    markDirty(); renderEditor(); return;
+  }
+
+  // single ↔ multiple
+  if (type === 'multiple') {
+    const c = prev.correct;
+    questions[i].correct = typeof c === 'number' ? [c] : (Array.isArray(c) ? c : [0]);
+  } else {
+    const c = prev.correct;
+    questions[i].correct = Array.isArray(c) ? (c[0] ?? 0) : (typeof c === 'number' ? c : 0);
+  }
+  questions[i].type = type;
   markDirty(); renderEditor();
 }
 
@@ -743,6 +803,7 @@ function moveQuestion(i, dir) {
 
 function addAnswer(i) {
   syncFromDOM();
+  if (questions[i].type === 'truefalse') return; // no-op
   if (questions[i].answers.length >= 12) { toast('Maximum 12 réponses par question', 'error'); return; }
   questions[i].answers.push('');
   markDirty(); renderEditor();
@@ -751,6 +812,7 @@ function addAnswer(i) {
 function removeAnswerAt(i, j) {
   syncFromDOM();
   const q = questions[i];
+  if (q.type === 'truefalse') return; // no-op
   if (q.answers.length <= 2) { toast('Minimum 2 réponses par question', 'error'); return; }
   q.answers.splice(j, 1);
   if (q.type === 'multiple') {
@@ -816,9 +878,10 @@ async function saveQuiz() {
       body: JSON.stringify({
         name,
         questions,
-        time: getGlobalTime(),   // single timer for the whole quiz
-        id:    currentQuizId,
-        token: currentToken,
+        time:    getGlobalTime(),
+        shuffle: getShuffle(),
+        id:      currentQuizId,
+        token:   currentToken,
       }),
     }, 15000);
     const data = await res.json();
@@ -847,7 +910,8 @@ async function createGame() {
     }, 15000);
     const data = await res.json();
     if (!res.ok) { toast(data.error || 'Erreur serveur', 'error'); return; }
-    window.location.href = `/game.html?pin=${data.pin}`;
+    // Passe id + token dans l'URL pour que game.html puisse revenir à l'éditeur
+    window.location.href = `/game.html?pin=${data.pin}&id=${encodeURIComponent(currentQuizId)}&token=${encodeURIComponent(currentToken)}`;
   } catch (err) {
     toast(err.name === 'AbortError' ? 'Délai dépassé, réessayez' : 'Impossible de contacter le serveur', 'error');
   }

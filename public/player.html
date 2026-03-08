@@ -230,56 +230,67 @@ function showQuestionScreen(msg) {
   showScreen('question-screen');
   currentQuestionType = msg.questionType || 'single';
   document.getElementById('q-body-text').textContent = msg.question;
-  document.getElementById('q-progress').textContent  = `Question ${msg.index+1} / ${msg.total}`;
+  document.getElementById('q-progress').textContent  = `Question ${msg.index + 1} / ${msg.total}`;
 
   const imgWrap = document.getElementById('q-player-image');
   const imgEl   = document.getElementById('q-player-img');
-  if (msg.image) { imgEl.src=msg.image; imgWrap.style.display='flex'; }
-  else           { imgWrap.style.display='none'; }
+  if (msg.image) { imgEl.src = msg.image; imgWrap.style.display = 'flex'; }
+  else           { imgWrap.style.display = 'none'; }
 
   const banner = document.getElementById('q-type-banner');
-  banner.textContent = currentQuestionType==='multiple' ? 'Choix multiple — sélectionne puis valide' : 'Choix unique';
-  banner.className   = `q-type-banner ${currentQuestionType}`;
+  banner.textContent =
+    currentQuestionType === 'multiple'  ? 'Choix multiple — sélectionne puis valide' :
+    currentQuestionType === 'truefalse' ? 'Vrai ou Faux ?' : 'Choix unique';
+  banner.className = `q-type-banner ${currentQuestionType}`;
 
   const singleDiv = document.getElementById('a-buttons');
   const multiDiv  = document.getElementById('a-checkboxes');
   const submitBar = document.getElementById('submit-bar');
 
-  // Adapter le nombre de colonnes
-  const n = msg.answers.length;
-  const cols = n <= 4 ? '1fr 1fr' : n <= 6 ? '1fr 1fr 1fr' : '1fr 1fr 1fr 1fr';
-  singleDiv.style.gridTemplateColumns = cols;
-  multiDiv.style.gridTemplateColumns  = cols;
-
   if (currentQuestionType === 'multiple') {
-    singleDiv.style.display='none'; multiDiv.style.display='grid'; submitBar.style.display='block';
-    document.getElementById('submit-btn').disabled=false;
+    singleDiv.style.display = 'none'; multiDiv.style.display = 'grid'; submitBar.style.display = 'block';
+    document.getElementById('submit-btn').disabled = false;
+    const n = msg.answers.length;
+    multiDiv.style.gridTemplateColumns = n <= 4 ? '1fr 1fr' : n <= 6 ? '1fr 1fr 1fr' : '1fr 1fr 1fr 1fr';
     renderMultipleButtons(msg.answers);
+  } else if (currentQuestionType === 'truefalse') {
+    // Vrai/Faux : deux gros boutons simples
+    singleDiv.style.display = 'grid'; multiDiv.style.display = 'none'; submitBar.style.display = 'none';
+    singleDiv.style.gridTemplateColumns = '1fr 1fr';
+    singleDiv.innerHTML = '';
+    [{ label: '✅ Vrai', idx: 0, bg: '#22c55e' }, { label: '❌ Faux', idx: 1, bg: '#ef4444' }].forEach(item => {
+      const btn = document.createElement('button');
+      btn.className = 'a-btn';
+      btn.style.background = item.bg;
+      btn.style.fontSize   = '1.2rem';
+      btn.style.justifyContent = 'center';
+      btn.textContent = item.label;
+      btn.onclick = () => submitSingle(item.idx);
+      singleDiv.appendChild(btn);
+    });
   } else {
-    singleDiv.style.display='grid'; multiDiv.style.display='none'; submitBar.style.display='none';
+    singleDiv.style.display = 'grid'; multiDiv.style.display = 'none'; submitBar.style.display = 'none';
+    const n = msg.answers.length;
+    singleDiv.style.gridTemplateColumns = n <= 4 ? '1fr 1fr' : n <= 6 ? '1fr 1fr 1fr' : '1fr 1fr 1fr 1fr';
     renderSingleButtons(msg.answers);
   }
 
-  let t=msg.time;
-  const timerEl=document.getElementById('q-timer');
-  timerEl.textContent=t; timerEl.classList.remove('urgent');
+  let t = msg.time;
+  const timerEl = document.getElementById('q-timer');
+  timerEl.textContent = t; timerEl.classList.remove('urgent');
   clearInterval(timerInterval);
-  timerInterval=setInterval(()=>{
-    t--; timerEl.textContent=t;
-    if (t<=5) timerEl.classList.add('urgent');
-    if (t<=0) {
+  timerInterval = setInterval(() => {
+    t--; timerEl.textContent = t;
+    if (t <= 5) timerEl.classList.add('urgent');
+    if (t <= 0) {
       clearInterval(timerInterval);
       if (!submitted) {
-        submitted=true;
-        if (currentQuestionType==='multiple') {
-          send({type:'answer',pin:gamePin,answer:[...multipleSelection],final:true});
-        } else {
-          send({type:'answer',pin:gamePin,answer:-1,final:true});
-        }
-        showAnswered(false,0);
+        submitted = true;
+        send({ type: 'answer', pin: gamePin, answer: currentQuestionType === 'multiple' ? [...multipleSelection] : -1, final: true });
+        showAnswered(false, 0);
       }
     }
-  },1000);
+  }, 1000);
 }
 
 function renderSingleButtons(answers) {

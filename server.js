@@ -22,11 +22,9 @@ app.use((req, res, next) => {
 
 // ─── Helmet ───────────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  const proto  = req.headers['x-forwarded-proto'] ||
-                 (req.socket.encrypted ? 'https' : 'http');
-  const host   = req.headers['x-forwarded-host'] || req.headers.host;
+  const proto   = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http');
+  const host    = req.headers['x-forwarded-host']  || req.headers.host;
   const wsProto = proto === 'https' ? 'wss' : 'ws';
-
   helmet({
     contentSecurityPolicy: {
       directives: {
@@ -37,7 +35,7 @@ app.use((req, res, next) => {
         fontSrc:                 ["'self'", "https://fonts.gstatic.com"],
         imgSrc:                  ["'self'", "data:", "blob:"],
         connectSrc:              ["'self'", `${proto}://${host}`, `${wsProto}://${host}`],
-        upgradeInsecureRequests: null, // ← désactive l'upgrade automatique
+        upgradeInsecureRequests: null,
       },
     },
   })(req, res, next);
@@ -48,22 +46,19 @@ app.use(express.json());
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 app.use('/api/', rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 15 * 60 * 1000, max: 100,
   message: { error: 'Trop de requêtes, réessaie plus tard.' },
 }));
 app.use('/api/upload', rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 20,
+  windowMs: 10 * 60 * 1000, max: 20,
   message: { error: "Trop d'uploads." },
 }));
 app.use('/api/create', rateLimit({
-  windowMs: 60 * 1000,
-  max: 5,
+  windowMs: 60 * 1000, max: 5,
   message: { error: 'Trop de parties créées.' },
 }));
 
-// ─── Constantes de validation ─────────────────────────────────────────────────
+// ─── Constantes ───────────────────────────────────────────────────────────────
 const MAX_PLAYERS   = 100;
 const MAX_QUESTIONS = 50;
 const MAX_ANSWERS   = 12;
@@ -71,20 +66,58 @@ const MAX_Q_LENGTH  = 500;
 const MAX_A_LENGTH  = 200;
 const MAX_NAME_LEN  = 60;
 
+// ─── sanitizeQuestions ────────────────────────────────────────────────────────
 function sanitizeQuestions(questions) {
   if (!Array.isArray(questions) || questions.length === 0)
     throw new Error('Questions manquantes');
   if (questions.length > MAX_QUESTIONS)
     throw new Error('Trop de questions (max 50)');
-  return questions.map(q => {
+
+  return questions.map((q, idx) => {
     if (typeof q.question !== 'string')
-      throw new Error('Champ "question" invalide');
+      throw new Error(`Question ${idx + 1} : champ "question" invalide`);
+
+    const type = ['single', 'multiple', 'truefalse'].includes(q.type) ? q.type : 'single';
+
+    // ── Vrai / Faux ──────────────────────────────────────────────────────────
+    if (type === 'truefalse') {
+      const correct = q.correct === 0 || q.correct === 1 ? q.correct : null;
+      if (correct === null)
+        throw new Error(`Question ${idx + 1} : bonne réponse Vrai/Faux manquante`);
+      return {
+        question: q.question.trim().slice(0, MAX_Q_LENGTH),
+        answers:  ['Vrai', 'Faux'],   // valeurs canoniques côté serveur
+        correct,
+        type:     'truefalse',
+        image:    typeof q.image === 'string' && q.image.startsWith('/uploads/') ? q.image : null,
+      };
+    }
+
+    // ── Choix multiple ───────────────────────────────────────────────────────
+    if (type === 'multiple') {
+      if (!Array.isArray(q.answers) || q.answers.length < 2)
+        throw new Error(`Question ${idx + 1} : réponses manquantes`);
+      if (!Array.isArray(q.correct) || q.correct.length === 0)
+        throw new Error(`Question ${idx + 1} : bonne(s) réponse(s) manquante(s)`);
+      return {
+        question: q.question.trim().slice(0, MAX_Q_LENGTH),
+        answers:  q.answers.map(a => (typeof a === 'string' ? a : '').trim().slice(0, MAX_A_LENGTH)),
+        correct:  q.correct.filter(c => Number.isInteger(c) && c >= 0 && c < q.answers.length),
+        type:     'multiple',
+        image:    typeof q.image === 'string' && q.image.startsWith('/uploads/') ? q.image : null,
+      };
+    }
+
+    // ── Choix unique (défaut) ────────────────────────────────────────────────
+    if (!Array.isArray(q.answers) || q.answers.length < 2)
+      throw new Error(`Question ${idx + 1} : réponses manquantes`);
+    if (typeof q.correct !== 'number' || q.correct < 0 || q.correct >= q.answers.length)
+      throw new Error(`Question ${idx + 1} : bonne réponse invalide`);
     return {
       question: q.question.trim().slice(0, MAX_Q_LENGTH),
       answers:  q.answers.map(a => (typeof a === 'string' ? a : '').trim().slice(0, MAX_A_LENGTH)),
       correct:  q.correct,
-      time:     typeof q.time === 'number' ? Math.min(Math.max(q.time, 5), 120) : 20,
-      type:     q.type === 'multiple' ? 'multiple' : 'single',
+      type:     'single',
       image:    typeof q.image === 'string' && q.image.startsWith('/uploads/') ? q.image : null,
     };
   });
@@ -132,19 +165,9 @@ function handleUpload(req, res, next) {
     if (err instanceof multer.MulterError) {
       switch (err.code) {
         case 'LIMIT_FILE_SIZE':
-          return res.status(413).json({
-            error:     'Fichier trop volumineux',
-            detail:    `La taille maximale autorisée est de ${MAX_SIZE_MB} Mo.`,
-            code:      'FILE_TOO_LARGE',
-            maxSizeMb: MAX_SIZE_MB,
-          });
+          return res.status(413).json({ error: 'Fichier trop volumineux', detail: `Max ${MAX_SIZE_MB} Mo.`, code: 'FILE_TOO_LARGE', maxSizeMb: MAX_SIZE_MB });
         case 'LIMIT_UNEXPECTED_FILE':
-          return res.status(415).json({
-            error:   err.field,
-            detail:  'Utilise un format image standard.',
-            code:    'INVALID_TYPE',
-            allowed: ALLOWED_TYPES,
-          });
+          return res.status(415).json({ error: err.field, detail: 'Format image standard requis.', code: 'INVALID_TYPE', allowed: ALLOWED_TYPES });
         case 'LIMIT_FILE_COUNT':
           return res.status(400).json({ error: 'Un seul fichier à la fois', code: 'TOO_MANY_FILES' });
         default:
@@ -152,11 +175,7 @@ function handleUpload(req, res, next) {
       }
     }
     console.error('[upload] Erreur inattendue :', err);
-    return res.status(500).json({
-      error:  "Erreur serveur lors de l'upload",
-      detail: err.message,
-      code:   'SERVER_ERROR',
-    });
+    return res.status(500).json({ error: "Erreur serveur lors de l'upload", detail: err.message, code: 'SERVER_ERROR' });
   });
 }
 
@@ -166,25 +185,19 @@ const games = {};
 function generatePin() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
-
 function broadcast(game, msg) {
   const data = JSON.stringify(msg);
-  game.players.forEach(p => {
-    if (p.ws && p.ws.readyState === WebSocket.OPEN) p.ws.send(data);
-  });
+  game.players.forEach(p => { if (p.ws && p.ws.readyState === WebSocket.OPEN) p.ws.send(data); });
 }
-
 function sendToHost(game, msg) {
   if (game.hostWs && game.hostWs.readyState === WebSocket.OPEN)
     game.hostWs.send(JSON.stringify(msg));
 }
-
 function getLeaderboard(game) {
   return [...game.players]
     .sort((a, b) => b.score - a.score)
     .map((p, i) => ({ rank: i + 1, name: p.name, score: p.score }));
 }
-
 function getAnswerCounts(game) {
   const q      = game.questions[game.currentQ];
   const count  = q ? q.answers.length : 4;
@@ -196,28 +209,17 @@ function getAnswerCounts(game) {
   return counts;
 }
 
-// ─── REST : Upload image ──────────────────────────────────────────────────────
+// ─── REST : Upload ────────────────────────────────────────────────────────────
 app.post('/api/upload', handleUpload, (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({
-      error:  'Aucun fichier reçu',
-      detail: 'Assure-toi de bien sélectionner une image.',
-      code:   'NO_FILE',
-    });
-  }
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier reçu', code: 'NO_FILE' });
   const sizeMb = (req.file.size / (1024 * 1024)).toFixed(2);
   console.log(`[upload] ✅ ${req.file.filename} — ${sizeMb} Mo`);
-  res.json({
-    url:      `/uploads/${req.file.filename}`,
-    filename: req.file.filename,
-    sizeMb:   parseFloat(sizeMb),
-  });
+  res.json({ url: `/uploads/${req.file.filename}`, filename: req.file.filename, sizeMb: parseFloat(sizeMb) });
 });
 
 app.delete('/api/upload', (req, res) => {
   const { url } = req.body;
-  if (!url || !url.startsWith('/uploads/'))
-    return res.status(400).json({ error: 'URL invalide' });
+  if (!url || !url.startsWith('/uploads/')) return res.status(400).json({ error: 'URL invalide' });
   const file = path.join(__dirname, 'public', url);
   if (fs.existsSync(file)) fs.unlinkSync(file);
   res.json({ ok: true });
@@ -229,12 +231,7 @@ app.get('/api/quizzes', (req, res) => {
   const quizzes = files.map(f => {
     try {
       const data = JSON.parse(fs.readFileSync(path.join(QUIZ_DIR, f), 'utf8'));
-      return {
-        id:            f.replace('.json', ''),
-        name:          data.name,
-        questionCount: data.questions.length,
-        createdAt:     data.createdAt,
-      };
+      return { id: f.replace('.json', ''), name: data.name, questionCount: data.questions.length, createdAt: data.createdAt };
     } catch { return null; }
   }).filter(Boolean);
   res.json(quizzes);
@@ -242,17 +239,15 @@ app.get('/api/quizzes', (req, res) => {
 
 app.get('/api/quizzes/:id', (req, res) => {
   const file = path.join(QUIZ_DIR, `${req.params.id}.json`);
-  if (!fs.existsSync(file))
-    return res.status(404).json({ error: 'Quiz introuvable' });
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Quiz introuvable' });
   res.json(JSON.parse(fs.readFileSync(file, 'utf8')));
 });
 
 app.post('/api/quizzes', (req, res) => {
-  const { name, questions, id, token } = req.body;
-  if (!name || !name.trim())
-    return res.status(400).json({ error: 'Nom manquant' });
-  if (name.length > MAX_NAME_LEN)
-    return res.status(400).json({ error: 'Nom trop long' });
+  const { name, questions, time, shuffle, id, token } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Nom manquant' });
+  if (name.length > MAX_NAME_LEN) return res.status(400).json({ error: 'Nom trop long' });
+
   let sanitized;
   try { sanitized = sanitizeQuestions(questions); }
   catch (e) { return res.status(400).json({ error: e.message }); }
@@ -260,15 +255,15 @@ app.post('/api/quizzes', (req, res) => {
   const quizId    = id || Date.now().toString();
   const editToken = token || Math.random().toString(36).slice(2) + Date.now().toString(36);
   const file      = path.join(QUIZ_DIR, `${quizId}.json`);
-  const existing  = (id && fs.existsSync(file))
-    ? JSON.parse(fs.readFileSync(file, 'utf8'))
-    : null;
+  const existing  = (id && fs.existsSync(file)) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
 
   const quiz = {
     id:        quizId,
     name:      name.trim(),
     token:     existing ? existing.token : editToken,
     questions: sanitized,
+    time:      typeof time === 'number' && time >= 5 && time <= 120 ? time : 20,
+    shuffle:   typeof shuffle === 'boolean' ? shuffle : false,
     createdAt: existing ? existing.createdAt : new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -279,21 +274,15 @@ app.post('/api/quizzes', (req, res) => {
 app.get('/api/quizzes/:id/verify', (req, res) => {
   const { token } = req.query;
   const file = path.join(QUIZ_DIR, `${req.params.id}.json`);
-  if (!fs.existsSync(file))
-    return res.status(404).json({ error: 'Quiz introuvable' });
-
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Quiz introuvable' });
   const quiz = JSON.parse(fs.readFileSync(file, 'utf8'));
-
-  if (!token || quiz.token !== token)
-    return res.status(403).json({ error: 'Accès refusé' });
-
+  if (!token || quiz.token !== token) return res.status(403).json({ error: 'Accès refusé' });
   res.json({ ok: true, name: quiz.name });
 });
 
 app.delete('/api/quizzes/:id', (req, res) => {
   const file = path.join(QUIZ_DIR, `${req.params.id}.json`);
-  if (!fs.existsSync(file))
-    return res.status(404).json({ error: 'Quiz introuvable' });
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Quiz introuvable' });
   try {
     const quiz = JSON.parse(fs.readFileSync(file, 'utf8'));
     quiz.questions.forEach(q => {
@@ -308,11 +297,47 @@ app.delete('/api/quizzes/:id', (req, res) => {
 });
 
 // ─── REST : Partie ────────────────────────────────────────────────────────────
+// Charge le quiz depuis le disque à partir de son ID
 app.post('/api/create', (req, res) => {
-  const { questions } = req.body;
+  const { quizId } = req.body;
+  if (!quizId) return res.status(400).json({ error: 'quizId manquant' });
+
+  const file = path.join(QUIZ_DIR, `${quizId}.json`);
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'Quiz introuvable' });
+
+  let quiz;
+  try { quiz = JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (e) { return res.status(500).json({ error: 'Lecture du quiz impossible' }); }
+
   let sanitized;
-  try { sanitized = sanitizeQuestions(questions); }
+  try { sanitized = sanitizeQuestions(quiz.questions); }
   catch (e) { return res.status(400).json({ error: e.message }); }
+
+  // Applique le mélange des réponses si activé (sauf truefalse)
+  if (quiz.shuffle) {
+    sanitized = sanitized.map(q => {
+      if (q.type === 'truefalse') return q;
+
+      // Crée un tableau d'indices mélangé
+      const indices = q.answers.map((_, i) => i);
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+
+      const newAnswers = indices.map(i => q.answers[i]);
+
+      // Recalcule correct selon le nouveau mapping
+      let newCorrect;
+      if (q.type === 'multiple') {
+        newCorrect = q.correct.map(c => indices.indexOf(c));
+      } else {
+        newCorrect = indices.indexOf(q.correct);
+      }
+
+      return { ...q, answers: newAnswers, correct: newCorrect };
+    });
+  }
 
   const pin = generatePin();
   games[pin] = {
@@ -320,6 +345,7 @@ app.post('/api/create', (req, res) => {
     hostWs:        null,
     players:       [],
     questions:     sanitized,
+    time:          typeof quiz.time === 'number' ? quiz.time : 20,
     currentQ:      -1,
     state:         'lobby',
     timer:         null,
@@ -332,10 +358,8 @@ app.post('/api/create', (req, res) => {
 
 app.get('/api/check/:pin', (req, res) => {
   const game = games[req.params.pin];
-  if (!game)
-    return res.status(404).json({ error: 'Partie introuvable' });
-  if (game.state !== 'lobby')
-    return res.status(400).json({ error: 'Partie déjà commencée' });
+  if (!game) return res.status(404).json({ error: 'Partie introuvable' });
+  if (game.state !== 'lobby') return res.status(400).json({ error: 'Partie déjà commencée' });
   res.json({ ok: true });
 });
 
@@ -349,14 +373,11 @@ wss.on('connection', (ws) => {
     try { msg = JSON.parse(raw); } catch { return; }
 
     const { type, pin } = msg;
-
     if (pin && !/^\d{6}$/.test(pin)) return;
-
     const game = games[pin];
 
     if (type === 'host_join') {
-      if (!game)
-        return ws.send(JSON.stringify({ type: 'error', message: 'Partie introuvable' }));
+      if (!game) return ws.send(JSON.stringify({ type: 'error', message: 'Partie introuvable' }));
       game.hostWs = ws;
       ws.gamePin  = pin;
       ws.role     = 'host';
@@ -365,15 +386,11 @@ wss.on('connection', (ws) => {
     }
 
     if (type === 'player_join') {
-      if (!game)
-        return ws.send(JSON.stringify({ type: 'error', message: 'Code invalide' }));
-      if (game.state !== 'lobby')
-        return ws.send(JSON.stringify({ type: 'error', message: 'Partie déjà commencée' }));
-      if (game.players.length >= MAX_PLAYERS)
-        return ws.send(JSON.stringify({ type: 'error', message: 'Partie pleine' }));
+      if (!game) return ws.send(JSON.stringify({ type: 'error', message: 'Code invalide' }));
+      if (game.state !== 'lobby') return ws.send(JSON.stringify({ type: 'error', message: 'Partie déjà commencée' }));
+      if (game.players.length >= MAX_PLAYERS) return ws.send(JSON.stringify({ type: 'error', message: 'Partie pleine' }));
       const name = (msg.name || '').trim().slice(0, 20).replace(/[<>]/g, '');
-      if (!name)
-        return ws.send(JSON.stringify({ type: 'error', message: 'Nom invalide' }));
+      if (!name) return ws.send(JSON.stringify({ type: 'error', message: 'Nom invalide' }));
       if (game.players.find(p => p.name.toLowerCase() === name.toLowerCase()))
         return ws.send(JSON.stringify({ type: 'error', message: 'Nom déjà pris' }));
 
@@ -390,17 +407,14 @@ wss.on('connection', (ws) => {
     if (!game) return;
 
     if (type === 'start_game' && ws.role === 'host') {
-      if (game.players.length === 0)
-        return sendToHost(game, { type: 'error', message: 'Aucun joueur' });
+      if (game.players.length === 0) return sendToHost(game, { type: 'error', message: 'Aucun joueur' });
       nextQuestion(game);
       return;
     }
-
     if (type === 'next_question' && ws.role === 'host') {
       if (game.state === 'q_result') nextQuestion(game);
       return;
     }
-
     if (type === 'end_game' && ws.role === 'host') {
       endGame(game);
       return;
@@ -413,6 +427,7 @@ wss.on('connection', (ws) => {
 
       const q          = game.questions[game.currentQ];
       const isMultiple = q.type === 'multiple';
+      const isTF       = q.type === 'truefalse';
 
       if (isMultiple) {
         if (!msg.final) {
@@ -425,7 +440,7 @@ wss.on('connection', (ws) => {
       }
 
       const elapsed   = (Date.now() - game.questionStart) / 1000;
-      const timeLimit = q.time || 20;
+      const timeLimit = game.time || 20;
       let isCorrect   = false;
       let points      = 0;
 
@@ -444,6 +459,7 @@ wss.on('connection', (ws) => {
           player.score += points;
         }
       } else {
+        // single ou truefalse : même logique
         isCorrect = msg.answer === q.correct;
         if (isCorrect) {
           const ratio = Math.max(0, (timeLimit - elapsed) / timeLimit);
@@ -463,7 +479,6 @@ wss.on('connection', (ws) => {
         clearTimeout(game.timer);
         game.autoTimer = setTimeout(() => revealAnswer(game), 1000);
       }
-      return;
     }
   });
 
@@ -487,7 +502,6 @@ wss.on('connection', (ws) => {
         }
       }
     }
-
     if (ws.role === 'host') {
       broadcast(game, { type: 'host_left' });
     }
@@ -497,14 +511,12 @@ wss.on('connection', (ws) => {
 // ─── Logique de jeu ───────────────────────────────────────────────────────────
 function nextQuestion(game) {
   game.currentQ++;
-  if (game.currentQ >= game.questions.length) {
-    endGame(game);
-    return;
-  }
+  if (game.currentQ >= game.questions.length) { endGame(game); return; }
+
   game.state         = 'question';
   game.answers       = {};
   const q            = game.questions[game.currentQ];
-  const timeLimit    = q.time || 20;
+  const timeLimit    = game.time || 20;
   game.questionStart = Date.now();
 
   sendToHost(game, {
@@ -550,7 +562,6 @@ function revealAnswer(game) {
     questionType: q.type || 'single',
     isLast,
   });
-
   broadcast(game, {
     type:         'question_result',
     correct:      q.correct,
@@ -574,30 +585,25 @@ function endGame(game) {
   setTimeout(() => delete games[game.pin], 10 * 60 * 1000);
 }
 
-// ─── Nettoyage des uploads orphelins ─────────────────────────────────────────
+// ─── Nettoyage orphelins ──────────────────────────────────────────────────────
 function cleanupOrphanUploads() {
   try {
     const usedImages = new Set();
-    fs.readdirSync(QUIZ_DIR)
-      .filter(f => f.endsWith('.json'))
-      .forEach(f => {
-        try {
-          const quiz = JSON.parse(fs.readFileSync(path.join(QUIZ_DIR, f), 'utf8'));
-          quiz.questions.forEach(q => {
-            if (q.image && q.image.startsWith('/uploads/'))
-              usedImages.add(path.basename(q.image));
-          });
-        } catch {}
-      });
+    fs.readdirSync(QUIZ_DIR).filter(f => f.endsWith('.json')).forEach(f => {
+      try {
+        const quiz = JSON.parse(fs.readFileSync(path.join(QUIZ_DIR, f), 'utf8'));
+        quiz.questions.forEach(q => {
+          if (q.image && q.image.startsWith('/uploads/')) usedImages.add(path.basename(q.image));
+        });
+      } catch {}
+    });
     fs.readdirSync(UPLOAD_DIR).forEach(file => {
       if (!usedImages.has(file)) {
         fs.unlinkSync(path.join(UPLOAD_DIR, file));
         console.log(`[cleanup] 🗑  Orphelin supprimé : ${file}`);
       }
     });
-  } catch (e) {
-    console.error('[cleanup] Erreur :', e);
-  }
+  } catch (e) { console.error('[cleanup] Erreur :', e); }
 }
 setInterval(cleanupOrphanUploads, 60 * 60 * 1000);
 cleanupOrphanUploads();
