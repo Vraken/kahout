@@ -271,7 +271,8 @@
     <div class="editor-footer-right">
       <button class="btn btn-gray"  onclick="openLinkModal()">🔗 Lien d'édition</button>
       <button class="btn btn-white" onclick="saveQuiz()">💾 Sauvegarder</button>
-      <button class="btn btn-blue"  onclick="createGame()">▶ Lancer</button>
+      <button class="btn btn-blue"  onclick="createGame(false)">▶ Lancer</button>
+      <button class="btn btn-green" onclick="createGame(true)">🎮 Démo</button>
     </div>
   </div>
 </div>
@@ -906,19 +907,23 @@ async function saveQuiz() {
   finally { finishProgress(); }
 }
 
-async function createGame() {
+async function createGame(isDemo = false) {
   if (!validateQuestions()) return;
   await saveQuiz();
   if (isDirty) return;
   try {
     const res  = await fetchWithTimeout('/api/create', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quizId: currentQuizId }),
+      body: JSON.stringify({ quizId: currentQuizId, demo: isDemo }),
     }, 15000);
     const data = await res.json();
     if (!res.ok) { toast(data.error || 'Erreur serveur', 'error'); return; }
-    // Passe id + token dans l'URL pour que game.html puisse revenir à l'éditeur
-    window.location.href = `/game.html?pin=${data.pin}&id=${encodeURIComponent(currentQuizId)}&token=${encodeURIComponent(currentToken)}`;
+    const demoParam = isDemo ? '&demo=1' : '';
+    if (isDemo) {
+      window.location.href = `/player.html?pin=${data.pin}&demo=1&id=${encodeURIComponent(currentQuizId)}&token=${encodeURIComponent(currentToken)}`;
+    } else {
+      window.location.href = `/game.html?pin=${data.pin}&id=${encodeURIComponent(currentQuizId)}&token=${encodeURIComponent(currentToken)}${demoParam}`;
+    }
   } catch (err) {
     toast(err.name === 'AbortError' ? 'Délai dépassé, réessayez' : 'Impossible de contacter le serveur', 'error');
   }

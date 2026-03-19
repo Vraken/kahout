@@ -297,7 +297,7 @@ app.delete('/api/quizzes/:id', (req, res) => {
 
 // ─── REST : Partie ────────────────────────────────────────────────────────────
 app.post('/api/create', (req, res) => {
-  const { quizId } = req.body;
+  const { quizId, demo } = req.body;
   if (!quizId) return res.status(400).json({ error: 'quizId manquant' });
 
   const file = path.join(QUIZ_DIR, `${quizId}.json`);
@@ -346,8 +346,9 @@ app.post('/api/create', (req, res) => {
     autoTimer:     null,
     answers:       {},
     questionStart: null,
+    demo:          demo === true,
   };
-  res.json({ pin });
+  res.json({ pin, demo: demo === true });
 });
 
 app.get('/api/check/:pin', (req, res) => {
@@ -395,15 +396,40 @@ wss.on('connection', (ws) => {
       ws.gamePin  = pin;
       ws.role     = 'player';
       game.players.push({ id: playerId, name, score: 0, ws });
-      ws.send(JSON.stringify({ type: 'joined', playerId, name }));
+      
+      const isDemoPlayer = game.demo && name === 'Éditeur Démo';
+      
+      if (isDemoPlayer) {
+        const demoData = {
+          type: 'joined',
+          playerId,
+          name,
+          demo: true,
+          questions: game.questions,
+          time: game.time
+        };
+        ws.send(JSON.stringify(demoData));
+      } else {
+        ws.send(JSON.stringify({ type: 'joined', playerId, name }));
+      }
       sendToHost(game, { type: 'player_joined', name, count: game.players.length });
+
+      if (isDemoPlayer) {
+        setTimeout(() => nextQuestion(game), 500);
+      }
       return;
     }
 
     if (!game) return;
 
     if (type === 'start_game' && ws.role === 'host') {
-      if (game.players.length === 0) return sendToHost(game, { type: 'error', message: 'Aucun joueur' });
+      if (game.players.length === 0 && !game.demo) return sendToHost(game, { type: 'error', message: 'Aucun joueur' });
+      if (game.demo) {
+        const demoId = 'demo-player';
+        const demoPlayer = { id: demoId, name: 'Démonstration', score: 0, ws: null };
+        game.players.push(demoPlayer);
+        sendToHost(game, { type: 'player_joined', name: 'Démonstration', count: 1 });
+      }
       nextQuestion(game);
       return;
     }

@@ -99,6 +99,9 @@
 
   #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 14px 28px; border-radius: 12px; font-weight: 500; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
   #toast.show { opacity: 1; }
+  .demo-banner { position: fixed; top: 0; left: 0; right: 0; background: #22c55e; color: white; text-align: center; padding: 8px; font-weight: 600; z-index: 100; }
+  .demo-back-btn { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #4f46e5; color: white; padding: 14px 32px; border-radius: 12px; font-size: 1rem; font-weight: 600; border: none; cursor: pointer; z-index: 101; }
+  .demo-back-btn:hover { transform: translateX(-50%) translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.2); }
 </style>
 </head>
 <body>
@@ -167,9 +170,15 @@
 </div>
 
 <div id="toast"></div>
+<div id="demo-banner" class="demo-banner" style="display:none;">Mode Démonstration - Testez votre quiz</div>
 
 <script>
 const AVATARS = ['😎','🦊','🐼','🦁','🐸','🦄','🐯','🐧','🦋','🦖','🎃','👾'];
+
+// Demo mode state
+let demoMode = false;
+let demoQuestions = [];
+let demoTime = 20;
 
 function getShape(i) {
   const shapes = ['🔴','🔵','🟡','🟢','🟠','🟣','⚫','⚪','🟤','🔶','🔷','🔸'];
@@ -182,6 +191,54 @@ let lastAnswer={ given:null, correct:null, points:0 };
 let myScore=0, currentQuestionType='single';
 let multipleSelection=new Set();
 
+// DEMO helpers
+function startDemo() {
+  demoIndex = 0;
+  demoScore = 0;
+  document.getElementById('my-name-display').textContent = myName;
+  document.getElementById('avatar').textContent = '🧪';
+  showScreen('lobby');
+  startDemoQuestion(demoIndex);
+}
+
+function startDemoQuestion(index) {
+  if (index >= demoTotal) {
+    showFinal([{ name: myName, rank: 1, score: demoScore }]);
+    return;
+  }
+  const q = demoQuestions[index];
+  const msg = {
+    question: q.question,
+    index: index,
+    total: demoTotal,
+    time: 20,
+    questionType: 'single',
+    answers: q.answers,
+    image: ''
+  };
+  showQuestionScreen(msg);
+}
+
+function processDemoAnswer(idx) {
+  const q = demoQuestions[demoIndex];
+  const correct = idx === q.correct;
+  const points = correct ? 10 : 0;
+  demoScore += points;
+  showAnswered(correct, points);
+  const leaderboard = [{ name: myName, rank: 1, score: demoScore }];
+  setTimeout(() => {
+    showQResult({ leaderboard });
+    setTimeout(() => {
+      demoIndex++;
+      if (demoIndex < demoTotal) {
+        startDemoQuestion(demoIndex);
+      } else {
+        showFinal(leaderboard);
+      }
+    }, 800);
+  }, 400);
+}
+
 function joinGame() {
   const pin  = document.getElementById('pin-input').value.trim();
   const name = document.getElementById('name-input').value.trim();
@@ -189,10 +246,9 @@ function joinGame() {
   err.textContent = '';
   if (!pin || pin.length < 4) return (err.textContent = 'Code invalide');
   if (!name || name.length < 2) return (err.textContent = 'Pseudo trop court');
-  fetch(`/api/check/${pin}`)
-    .then(r => r.json())
-    .then(data => { if (data.error) return (err.textContent=data.error); gamePin=pin; myName=name; connectWS(); })
-    .catch(() => (err.textContent='Serveur inaccessible'));
+  gamePin = pin;
+  myName  = name;
+  connectWS();
 }
 
 function connectWS() {
@@ -210,7 +266,18 @@ function handleMsg(msg) {
       myPlayerId=msg.playerId;
       document.getElementById('my-name-display').textContent=myName;
       document.getElementById('avatar').textContent=AVATARS[Math.floor(Math.random()*AVATARS.length)];
-      showScreen('lobby'); break;
+      
+      if (msg.demo && msg.questions) {
+        demoMode = true;
+        demoQuestions = msg.questions;
+        demoTime = msg.time || 20;
+        myScore = 0;
+        showScreen('lobby');
+        setTimeout(() => showDemoQuestion(0), 1000);
+      } else {
+        showScreen('lobby');
+      }
+      break;
     case 'question':
       clearInterval(timerInterval); lastAnswer={given:null,correct:null,points:0}; submitted=false; multipleSelection=new Set();
       showQuestionScreen(msg); break;
@@ -228,6 +295,7 @@ function handleMsg(msg) {
 
 function showQuestionScreen(msg) {
   showScreen('question-screen');
+  if (demoMode) currentQuestionIndex = msg.index;
   currentQuestionType = msg.questionType || 'single';
   document.getElementById('q-body-text').textContent = msg.question;
   document.getElementById('q-progress').textContent  = `Question ${msg.index + 1} / ${msg.total}`;
@@ -327,6 +395,7 @@ function toggleCheckBtn(i) {
 }
 
 function submitSingle(idx) {
+  if (demoMode) { currentQuestionIndex = currentQuestionIndex || 0; submitDemoAnswer(idx); return; }
   if (submitted) return;
   submitted=true;
   document.querySelectorAll('.a-btn').forEach(b=>b.disabled=true);
@@ -335,6 +404,7 @@ function submitSingle(idx) {
 }
 
 function submitMultiple() {
+  if (demoMode) { submitDemoAnswer(0); return; }
   if (submitted) return; submitted=true;
   document.querySelectorAll('.a-check-btn').forEach(b=>b.classList.add('disabled'));
   document.getElementById('submit-btn').disabled=true;
@@ -390,7 +460,68 @@ function showFinal(leaderboard) {
       <span class="lb-name">${p.name}${p.name===myName?' 👈':''}</span>
       <span class="lb-score">${p.score} pts</span>
     </div>`).join('');
+  
+  if (demoMode && urlId && urlToken) {
+    const btn = document.createElement('button');
+    btn.className = 'demo-back-btn';
+    btn.textContent = 'Retour à l\'éditeur';
+    btn.onclick = () => {
+      window.location.href = `/edit.html?id=${encodeURIComponent(urlId)}&token=${encodeURIComponent(urlToken)}`;
+    };
+    document.body.appendChild(btn);
+  }
 }
+
+function showDemoQuestion(index) {
+  if (index >= demoQuestions.length) {
+    showFinal([{ name: myName, rank: 1, score: myScore }]);
+    return;
+  }
+  const q = demoQuestions[index];
+  const msg = {
+    index: index,
+    total: demoQuestions.length,
+    question: q.question,
+    answers: q.answers,
+    time: demoTime,
+    questionType: q.type || 'single',
+    image: q.image || ''
+  };
+  showQuestionScreen(msg);
+}
+
+function submitDemoAnswer(idx) {
+  const q = demoQuestions[currentQuestionIndex || 0];
+  let isCorrect = false;
+  let points = 0;
+  
+  if (q.type === 'multiple') {
+    const correctSet = new Set(q.correct);
+    const givenSet = new Set([idx]);
+    isCorrect = correctSet.size === givenSet.size && [...correctSet].every(x => givenSet.has(x));
+    points = isCorrect ? Math.round(500 + 250) : 0;
+  } else if (q.type === 'truefalse') {
+    isCorrect = idx === q.correct;
+    points = isCorrect ? Math.round(500 + 250) : 0;
+  } else {
+    isCorrect = idx === q.correct;
+    points = isCorrect ? Math.round(500 + 250) : 0;
+  }
+  
+  if (isCorrect) myScore += points;
+  lastAnswer = { correct: isCorrect, points };
+  showAnswered(isCorrect, points);
+  
+  const leaderboard = [{ name: myName, rank: 1, score: myScore }];
+  setTimeout(() => {
+    showQResult({ leaderboard, correct: q.type === 'multiple' ? q.correct : [q.correct], questionType: q.type || 'single' });
+    setTimeout(() => {
+      showDemoQuestion((currentQuestionIndex || 0) + 1);
+    }, 3000);
+  }, 1000);
+}
+
+let currentQuestionIndex = 0;
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -405,14 +536,28 @@ document.getElementById('name-input').addEventListener('keydown', e=>{ if(e.key=
 document.getElementById('pin-input').addEventListener('keydown',  e=>{ if(e.key==='Enter') document.getElementById('name-input').focus(); });
 
 // Pré-remplir le PIN depuis l'URL si présent
-const urlPin = new URLSearchParams(window.location.search).get('pin');
+const urlParams = new URLSearchParams(window.location.search);
+const urlPin   = urlParams.get('pin');
+const urlDemo  = urlParams.get('demo') === '1';
+const urlId    = urlParams.get('id') || '';
+const urlToken = urlParams.get('token') || '';
+
 if (urlPin) {
   const pinInput = document.getElementById('pin-input');
   pinInput.value = urlPin;
   pinInput.readOnly = true;
   pinInput.style.opacity = '0.6';
   pinInput.style.cursor  = 'not-allowed';
-  document.getElementById('name-input').focus();
+  
+  if (urlDemo) {
+    document.getElementById('demo-banner').style.display = 'block';
+    document.getElementById('name-input').value = 'Éditeur Démo';
+    document.getElementById('name-input').readOnly = true;
+    document.getElementById('name-input').style.opacity = '0.6';
+    setTimeout(() => joinGame(), 500);
+  } else {
+    document.getElementById('name-input').focus();
+  }
 }
 </script>
 </body>
