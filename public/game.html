@@ -122,21 +122,17 @@
     <div class="pin-box">
       <div class="lbl">Code du jeu</div>
       <div class="pin" id="pin-display">——</div>
-      <div class="url">Rejoindre sur <strong id="domain-display">localhost:3000/player.html</strong></div>
+      <div class="url" style="margin-top:12px;">
+        <div style="font-size:0.8rem;color:#6b7280;margin-bottom:6px;">Lien pour les joueurs :</div>
+        <div id="player-link-display" style="font-weight:600;color:#4f46e5;word-break:break-all;font-size:0.85rem;"></div>
+        <button class="btn btn-sm btn-white" style="margin-top:8px;" onclick="copyPlayerLink()">Copier le lien</button>
+      </div>
     </div>
 
     <!-- Nouveau bloc QR Code -->
     <div class="qr-box">
       <div id="qrcode"></div>
       <div class="lbl">Scanner pour rejoindre</div>
-    </div>
-  </div>
-
-  <div class="link-box" style="width:100%; max-width:500px; margin-top:16px;">
-    <p style="margin-bottom:8px; font-size:0.9rem;">🔗 Lien direct pour les joueurs :</p>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <input type="text" id="player-link" readonly onclick="this.select()">
-      <button class="btn btn-sm btn-white" onclick="copyPlayerLink()">Copier</button>
     </div>
   </div>
 
@@ -259,9 +255,8 @@ function handleMessage(msg) {
 
 // ─── Actions Lobby ────────────────────────────────────────────────────────────
 function copyPlayerLink() {
-  const input = document.getElementById('player-link');
-  input.select();
-  document.execCommand('copy');
+  const url = `${location.origin}/player.html?pin=${currentGame.pin}`;
+  navigator.clipboard.writeText(url);
   toast('Lien copié dans le presse-papier !');
 }
 
@@ -423,11 +418,8 @@ if (pinParam) {
   currentGame.pin = pinParam;
   document.getElementById('pin-display').textContent = pinParam;
 
-  const hostUrl       = `${location.host}/player.html`;
-  document.getElementById('domain-display').textContent = hostUrl;
-
   const fullPlayerUrl = `${location.origin}/player.html?pin=${pinParam}`;
-  document.getElementById('player-link').value = fullPlayerUrl;
+  document.getElementById('player-link-display').textContent = fullPlayerUrl;
 
   // Création du QRCode avec la librairie QRCode.js
   new QRCode(document.getElementById("qrcode"), {
