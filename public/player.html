@@ -38,8 +38,9 @@
   .q-type-banner.single   { background: rgba(255,255,255,0.15); }
   .q-type-banner.multiple { background: rgba(255,255,255,0.15); }
 
-  .q-player-image { width: 100%; padding: 12px 20px 0; display: flex; justify-content: center; }
-  .q-player-image img { max-height: 130px; max-width: 100%; border-radius: 12px; object-fit: contain; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  /* Give more space to the question image when present (image should take most of the screen) */
+  .q-player-image { width: 100%; padding: 12px 20px 0; display: flex; justify-content: center; flex: 1 0 auto; min-height: 0; }
+  .q-player-image img { max-height: 60vh; max-width: 100%; border-radius: 12px; object-fit: contain; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
 
   .q-body-text { font-size: clamp(1rem,2.5vw,1.3rem); font-weight: 600; padding: 14px 24px; text-align: center; width: 100%; }
 
