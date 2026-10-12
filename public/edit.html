@@ -131,6 +131,10 @@
 
   /* ── Card controls row ── */
   .ans-controls { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+  .expl-block { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e5e7eb; display: flex; flex-direction: column; gap: 8px; }
+  .expl-label { font-size: 0.78rem; font-weight: 600; color: #0f766e; }
+  .expl-text { width: 100%; padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.85rem; font-family: inherit; }
+  .expl-text:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
 
   /* ── Image upload ── */
   .img-upload-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; background: #f3f4f6; border: 1px solid #e5e7eb; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #4b5563; transition: all 0.2s; white-space: nowrap; }
@@ -567,6 +571,7 @@ function renderEditor() {
 
   questions.forEach((q, i) => {
     const img        = q.image ? safeImage(q.image) : null;
+    const explImg    = q.explanation && q.explanation.image ? safeImage(q.explanation.image) : null;
     const isTF       = q.type === 'truefalse';
 
     const card = document.createElement('div');
@@ -602,12 +607,34 @@ function renderEditor() {
                <span>Image</span>
                <button class="img-remove-btn" data-action="remove-img" title="Supprimer l'image" aria-label="Supprimer l'image">✕</button>
              </span>`
-          : `<label class="img-upload-btn" id="drop-zone-${i}" title="Ajouter une image (JPG, PNG, GIF, WebP · max 5 Mo)">
-               <input type="file" accept="image/*" data-action="upload-img">
-               🖼️ Image
-             </label>`
-        }
+         : `<label class="img-upload-btn" id="drop-zone-${i}" title="Ajouter une image (JPG, PNG, GIF, WebP · max 5 Mo)">
+                <input type="file" accept="image/*" data-action="upload-img">
+                🖼️ Image
+              </label>`
+         }
+      </div>
+
+      <div class="expl-block">
+        <div class="expl-label">💡 Explication (affichée avant les résultats)</div>
+        <div>
+          ${explImg
+            ? `<span class="img-preview-chip">
+                 <img src="${explImg}" alt="">
+                 <span>Explication</span>
+                 <button class="img-remove-btn" data-action="remove-expl" title="Supprimer l'image d'explication" aria-label="Supprimer l'image d'explication">✕</button>
+               </span>`
+            : `<label class="img-upload-btn" id="drop-zone-expl-${i}" title="Ajouter une image d'explication (JPG, PNG, GIF, WebP · max 5 Mo)">
+                 <input type="file" accept="image/*" data-action="upload-expl">
+                 🖼️ Image d'explication
+               </label>`
+          }
+        </div>
+        <input type="text" class="expl-text" placeholder="Texte d'explication (optionnel)…">
       </div>`;
+
+    // Fill textarea & answer inputs (not applicable for truefalse)
+    card.querySelector('textarea').value = q.question;
+    card.querySelector('.expl-text').value = (q.explanation && q.explanation.text) || '';
 
     // Fill textarea & answer inputs (not applicable for truefalse)
     card.querySelector('textarea').value = q.question;
@@ -646,11 +673,13 @@ function renderEditor() {
       if (action === 'del-ans')    removeAnswerAt(i, parseInt(t.dataset.ans));
       if (action === 'add-ans')    addAnswer(i);
       if (action === 'remove-img') removeImage(i);
+      if (action === 'remove-expl') removeExplanation(i);
     });
 
     card.addEventListener('change', e => {
       markDirty();
       if (e.target.dataset.action === 'upload-img') { uploadImage(i, e.target.files[0]); return; }
+      if (e.target.dataset.action === 'upload-expl') { uploadExplanation(i, e.target.files[0]); return; }
     });
 
     card.querySelectorAll('.type-toggle button').forEach(btn => {
@@ -692,6 +721,14 @@ function syncFromDOM() {
       card.querySelectorAll('.ans-wrap input[type=text]').forEach((inp, j) => {
         if (questions[i].answers[j] !== undefined) questions[i].answers[j] = inp.value;
       });
+    }
+    // explanation text
+    const explInput = card.querySelector('.expl-text');
+    if (explInput) {
+      const text = explInput.value.trim();
+      const prev = questions[i].explanation || {};
+      if (text || prev.image) questions[i].explanation = { image: prev.image || null, text };
+      else questions[i].explanation = null;
     }
   });
 }
@@ -746,7 +783,7 @@ function makeId() {
 }
 
 function makeQuestion() {
-  return { id: makeId(), question: '', answers: ['','','',''], correct: 0, type: 'single', image: null };
+  return { id: makeId(), question: '', answers: ['','','',''], correct: 0, type: 'single', image: null, explanation: null };
 }
 
 function setQuestionType(i, type) {
@@ -845,6 +882,14 @@ function removeImage(i) {
   markDirty(); renderEditor();
 }
 
+function removeExplanation(i) {
+  syncFromDOM();
+  const expl = questions[i].explanation;
+  if (expl && expl.image) fetchWithTimeout('/api/upload', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: expl.image }) }).catch(() => {});
+  questions[i].explanation = null;
+  markDirty(); renderEditor();
+}
+
 async function uploadImage(i, file) {
   if (!file) return;
   const MAX_MB = 5;
@@ -865,6 +910,35 @@ async function uploadImage(i, file) {
     questions[i].image = data.url;
     markDirty();
     toast(`✓ Image uploadée (${data.sizeMb} Mo)`, 'success', 2500);
+    renderEditor();
+  } catch (err) {
+    toast(err.name === 'AbortError' ? 'Upload trop long, réessayez' : 'Impossible de contacter le serveur', 'error', 4000);
+  }
+  finally { if (dropZone) dropZone.classList.remove('uploading'); }
+}
+
+async function uploadExplanation(i, file) {
+  if (!file) return;
+  const MAX_MB = 5;
+  if (file.size > MAX_MB * 1024 * 1024) { toast(`Image trop lourde (${(file.size/1024/1024).toFixed(1)} Mo) — max ${MAX_MB} Mo`, 'error', 5000); return; }
+  const allowed = ['image/jpeg','image/png','image/gif','image/webp'];
+  if (!allowed.includes(file.type)) { toast(`Format non supporté : ${file.type || 'inconnu'}`, 'error', 4000); return; }
+  const dropZone = document.getElementById(`drop-zone-expl-${i}`);
+  if (dropZone) dropZone.classList.add('uploading');
+  const form = new FormData();
+  form.append('image', file);
+  try {
+    const res  = await fetchWithTimeout('/api/upload', { method:'POST', body: form }, 30000);
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Erreur upload', 'error', 5000); return; }
+    syncFromDOM();
+    const prev = questions[i].explanation || {};
+    if (prev.image) {
+      await fetchWithTimeout('/api/upload', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: prev.image }) }).catch(() => {});
+    }
+    questions[i].explanation = { image: data.url, text: prev.text || '' };
+    markDirty();
+    toast(`✓ Image d'explication uploadée (${data.sizeMb} Mo)`, 'success', 2500);
     renderEditor();
   } catch (err) {
     toast(err.name === 'AbortError' ? 'Upload trop long, réessayez' : 'Impossible de contacter le serveur', 'error', 4000);

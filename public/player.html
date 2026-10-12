@@ -29,14 +29,14 @@
   .avatar { font-size: 4rem; margin-bottom: 8px; }
 
   /* ── QUESTION ── */
-  #question-screen { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; justify-content: flex-start; padding: 0; }
-  .q-header { background: rgba(0,0,0,0.2); width: 100%; padding: 14px 24px; text-align: center; }
-  .q-timer { font-size: 2rem; font-weight: 800; }
-  .q-timer.urgent { color: #fca5a5; animation: shake .3s infinite; }
+  #question-screen { background: #f8f9fb; color: #1a1a2e; justify-content: flex-start; padding: 0; }
+  .q-header { background: white; border-bottom: 1px solid #e5e7eb; width: 100%; padding: 14px 24px; text-align: center; }
+  .q-timer { font-size: 2rem; font-weight: 800; color: #4f46e5; }
+  .q-timer.urgent { color: #dc2626; animation: shake .3s infinite; }
   @keyframes shake { 0%,100%{transform:rotate(-2deg)} 50%{transform:rotate(2deg)} }
-  .q-type-banner { font-size: 0.8rem; font-weight: 600; padding: 6px 14px; border-radius: 20px; display: inline-block; margin-top: 6px; background: rgba(255,255,255,0.15); }
-  .q-type-banner.single   { background: rgba(255,255,255,0.15); }
-  .q-type-banner.multiple { background: rgba(255,255,255,0.15); }
+  .q-type-banner { font-size: 0.8rem; font-weight: 600; padding: 6px 14px; border-radius: 20px; display: inline-block; margin-top: 6px; background: #eef2ff; color: #4f46e5; }
+  .q-type-banner.single   { background: #eef2ff; color: #4f46e5; }
+  .q-type-banner.multiple { background: #fef3c7; color: #92400e; }
 
   /* Give more space to the question image when present (image should take most of the screen) */
   .q-player-image { width: 100%; padding: 12px 20px 0; display: flex; justify-content: center; flex: 1 0 auto; min-height: 0; }
@@ -46,21 +46,25 @@
 
   /* Boutons choix unique */
   .a-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 20px 20px; width: 100%; }
-  .a-btn { border: none; border-radius: 14px; padding: 16px 12px; font-size: clamp(.85rem,2vw,1rem); font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 85px; transition: all 0.2s; color: white; }
+  .a-btn { border: none; border-radius: 14px; padding: 16px 12px; font-size: clamp(.85rem,2vw,1rem); font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 85px; transition: all 0.2s; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.45); }
   .a-btn:hover:not(:disabled) { transform: scale(1.04); filter: brightness(1.1); }
   .a-btn:disabled { cursor: default; }
   .a-btn .ico { font-size: 1.6rem; }
   .a-btn.c0 {background:#ef4444} .a-btn.c1 {background:#3b82f6} .a-btn.c2 {background:#eab308} .a-btn.c3 {background:#22c55e}
   .a-btn.c4 {background:#f97316} .a-btn.c5 {background:#8b5cf6} .a-btn.c6 {background:#6b7280} .a-btn.c7 {background:#9ca3af}
   .a-btn.c8 {background:#a16207} .a-btn.c9 {background:#ea580c} .a-btn.c10{background:#0891b2} .a-btn.c11{background:#db2777}
+  /* fonds clairs → texte sombre pour rester lisible */
+  .a-btn.c2, .a-btn.c7 { color: #1a1a2e; text-shadow: none; }
 
   /* Boutons choix multiple */
   .a-checkboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 20px 0; width: 100%; }
-  .a-check-btn { border: 3px solid transparent; border-radius: 14px; padding: 14px 12px; font-size: clamp(.85rem,2vw,1rem); font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 85px; transition: all 0.2s; color: white; position: relative; }
+  .a-check-btn { border: 3px solid transparent; border-radius: 14px; padding: 14px 12px; font-size: clamp(.85rem,2vw,1rem); font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 85px; transition: all 0.2s; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.45); position: relative; }
   .a-check-btn:hover:not(.disabled) { filter: brightness(1.1); }
   .a-check-btn.c0 {background:#ef4444} .a-check-btn.c1 {background:#3b82f6} .a-check-btn.c2 {background:#eab308} .a-check-btn.c3 {background:#22c55e}
   .a-check-btn.c4 {background:#f97316} .a-check-btn.c5 {background:#8b5cf6} .a-check-btn.c6 {background:#6b7280} .a-check-btn.c7 {background:#9ca3af}
   .a-check-btn.c8 {background:#a16207} .a-check-btn.c9 {background:#ea580c} .a-check-btn.c10{background:#0891b2} .a-check-btn.c11{background:#db2777}
+  /* fonds clairs → texte sombre pour rester lisible */
+  .a-check-btn.c2, .a-check-btn.c7 { color: #1a1a2e; text-shadow: none; }
   .a-check-btn.checked { border-color: white; transform: scale(1.04); filter: brightness(1.15); }
   .a-check-btn.disabled { cursor: default; opacity: .7; }
   .check-indicator { position: absolute; top: 8px; right: 10px; font-size: 1.1rem; }
@@ -78,6 +82,14 @@
 
   #q-result { background: linear-gradient(135deg, #1e1b4b, #312e81); color: white; text-align: center; gap: 14px; }
   #q-result h2 { font-size: 1.5rem; font-weight: 600; }
+
+  #q-explain { background: #f8f9fb; color: #1a1a2e; text-align: center; gap: 14px; }
+  .explain-label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #0f766e; }
+  #q-explain h2 { font-size: 1.1rem; font-weight: 600; }
+  .explain-img-wrap { background: white; border-radius: 12px; padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); width: 100%; max-width: 100%; }
+  .explain-img-wrap img { display: block; width: 100%; max-height: 62vh; border-radius: 6px; object-fit: contain; }
+  #explain-text { font-size: 1rem; max-width: 480px; }
+  .explain-wait { font-size: 0.85rem; opacity: .7; }
   .result-icon { font-size: 3.5rem; }
   .my-rank { font-size: 1rem; opacity: .85; }
   .lb-mini { width: 100%; max-width: 380px; }
@@ -159,6 +171,17 @@
   <div class="pts" id="result-pts"></div>
   <div class="my-rank" id="my-rank"></div>
   <div class="lb-mini" id="lb-mini"></div>
+</div>
+
+<!-- Q EXPLAIN -->
+<div id="q-explain" class="screen">
+  <div class="explain-label">💡 Explication</div>
+  <h2 id="explain-qnum"></h2>
+  <div class="explain-img-wrap" id="explain-img-wrap" style="display:none;">
+    <img id="explain-img" src="" alt="explication">
+  </div>
+  <p id="explain-text" style="display:none;"></p>
+  <div class="explain-wait">En attente des résultats...</div>
 </div>
 
 <!-- FINAL -->
@@ -287,6 +310,7 @@ function handleMsg(msg) {
       if (msg.correct) myScore+=msg.points;
       showAnswered(msg.correct, msg.points); break;
     case 'question_result': showQResult(msg); break;
+    case 'question_explain': if (!demoMode) showExplanation(msg); break;
     case 'game_over':  clearInterval(timerInterval); showFinal(msg.leaderboard); break;
     case 'host_left':   toast("L'hôte a quitté la partie"); break;
     case 'error':       document.getElementById('err-msg').textContent=msg.message; break;
@@ -432,6 +456,18 @@ function showAnswered(correct, points) {
   }
 }
 
+function showExplanation(msg) {
+  clearInterval(timerInterval); showScreen('q-explain');
+  document.getElementById('explain-qnum').textContent = `Question ${msg.index + 1} / ${msg.total}`;
+  const wrap = document.getElementById('explain-img-wrap');
+  const img = document.getElementById('explain-img');
+  const txt = document.getElementById('explain-text');
+  if (msg.explanation && msg.explanation.image) { img.src = msg.explanation.image; wrap.style.display = 'block'; }
+  else { wrap.style.display = 'none'; }
+  if (msg.explanation && msg.explanation.text) { txt.textContent = msg.explanation.text; txt.style.display = 'block'; }
+  else { txt.style.display = 'none'; }
+}
+
 function showQResult(msg) {
   clearInterval(timerInterval); showScreen('q-result');
   const wasCorrect=lastAnswer.correct===true, wasPartial=!wasCorrect&&lastAnswer.points>0;
@@ -514,10 +550,16 @@ function submitDemoAnswer(idx) {
   
   const leaderboard = [{ name: myName, rank: 1, score: myScore }];
   setTimeout(() => {
-    showQResult({ leaderboard, correct: q.type === 'multiple' ? q.correct : [q.correct], questionType: q.type || 'single' });
-    setTimeout(() => {
-      showDemoQuestion((currentQuestionIndex || 0) + 1);
-    }, 3000);
+    const showRes = () => {
+      showQResult({ leaderboard, correct: q.type === 'multiple' ? q.correct : [q.correct], questionType: q.type || 'single' });
+      setTimeout(() => {
+        showDemoQuestion((currentQuestionIndex || 0) + 1);
+      }, 3000);
+    };
+    if (q.explanation && (q.explanation.image || q.explanation.text)) {
+      showExplanation({ explanation: q.explanation, index: currentQuestionIndex || 0, total: demoQuestions.length });
+      setTimeout(showRes, 4000);
+    } else showRes();
   }, 1000);
 }
 

@@ -37,23 +37,23 @@
   @keyframes pop { from{transform:scale(0)} to{transform:scale(1)} }
 
   /* ── QUESTION HOST ── */
-  #question-screen { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
-  .q-top { background: rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; gap: 12px; }
-  .q-num { font-size: 0.9rem; color: rgba(255,255,255,0.8); font-weight: 500; }
-  .q-type-pill { font-size: 0.75rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; color: white; background: rgba(255,255,255,0.2); }
-  .timer { width: 64px; height: 64px; border-radius: 50%; background: white; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 800; flex-shrink: 0; }
+  #question-screen { background: #f8f9fb; }
+  .q-top { background: white; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; gap: 12px; }
+  .q-num { font-size: 0.9rem; color: #6b7280; font-weight: 500; }
+  .q-type-pill { font-size: 0.75rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; color: #4f46e5; background: #eef2ff; }
+  .timer { width: 64px; height: 64px; border-radius: 50%; background: white; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 800; flex-shrink: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
   .timer.urgent { color: #ef4444; }
-  .ans-count-bar { background: rgba(0,0,0,0.15); padding: 12px 24px; font-size: 0.95rem; display: flex; gap: 16px; align-items: center; color: rgba(255,255,255,0.9); }
-  .progress-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden; }
+  .ans-count-bar { background: #eef2ff; padding: 12px 24px; font-size: 0.95rem; display: flex; gap: 16px; align-items: center; color: #4338ca; }
+  .progress-bar { flex: 1; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
   .progress-fill { height: 100%; background: #fbbf24; border-radius: 3px; transition: width 0.3s; }
   .q-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .q-body.has-image { flex-direction: row; }
   .q-image-panel { width: 40%; max-width: 380px; padding: 16px 0 16px 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .q-image-panel img { max-width: 100%; max-height: 200px; border-radius: 16px; object-fit: contain; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
   .q-right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-  .q-text { display: flex; align-items: center; justify-content: center; font-size: clamp(1.1rem,2.5vw,1.8rem); font-weight: 600; text-align: center; color: white; padding: 20px 24px; flex: 1; }
-  .a-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 20px 20px; }
-  .a-block { border-radius: 14px; padding: 16px; font-size: clamp(0.9rem,1.8vw,1.05rem); font-weight: 600; display: flex; align-items: center; gap: 12px; min-height: 70px; transition: all 0.25s; color: white; }
+  .q-text { display: flex; align-items: center; justify-content: center; font-size: clamp(1.1rem,2.5vw,1.8rem); font-weight: 600; text-align: center; color: #1a1a2e; padding: 20px 24px; flex: 1; }
+  .a-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px 24px; max-width: 1100px; width: 100%; margin: 0 auto; }
+  .a-block { border-radius: 16px; padding: 26px 22px; font-size: clamp(1.1rem,2.2vw,1.4rem); font-weight: 600; display: flex; align-items: center; justify-content: center; text-align: center; gap: 12px; min-height: 110px; transition: all 0.25s; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.45); }
   .a-block .ico { font-size: 1.4rem; flex-shrink: 0; }
   .a-block.c0 { background: #ef4444; }
   .a-block.c1 { background: #3b82f6; }
@@ -67,12 +67,21 @@
   .a-block.c9 { background: #ea580c; }
   .a-block.c10{ background: #0891b2; }
   .a-block.c11{ background: #db2777; }
+  /* fonds clairs → texte sombre pour rester lisible */
+  .a-block.c2, .a-block.c7 { color: #1a1a2e; text-shadow: none; }
   .a-block.correct { outline: 4px solid white; transform: scale(1.03); }
   .a-block.wrong   { opacity: 0.35; }
 
   /* ── Q RESULT ── */
-  #q-result { background: linear-gradient(135deg, #1e1b4b, #312e81); align-items: center; justify-content: flex-start; padding: 24px; gap: 20px; color: white; }
-  #q-result h2 { font-size: 1.6rem; font-weight: 600; }
+  #q-result { background: linear-gradient(135deg, #1e1b4b, #312e81); align-items: center; justify-content: flex-start; padding: 24px; gap: 20px; color: white; }  #q-result h2 { font-size: 1.6rem; font-weight: 600; }
+
+  /* ── Q EXPLAIN ── */
+  #q-explain { background: #f8f9fb; align-items: center; justify-content: flex-start; padding: 24px; gap: 16px; color: #1a1a2e; text-align: center; }
+  .explain-label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #0f766e; }
+  #q-explain h2 { font-size: 1.2rem; font-weight: 600; }
+  .explain-img-wrap { background: white; border-radius: 16px; padding: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); max-width: min(1200px, 96vw); }
+  .explain-img-wrap img { display: block; width: 100%; max-height: 72vh; border-radius: 8px; object-fit: contain; }
+  #explain-text { font-size: 1.05rem; max-width: 700px; }
   .auto-next { font-size: 0.9rem; color: rgba(255,255,255,0.7); }
   .auto-progress { width: 200px; height: 5px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden; }
   .auto-progress-fill { height: 100%; background: #fbbf24; border-radius: 3px; }
@@ -153,7 +162,6 @@
 <div id="question-screen" class="screen">
   <div class="q-top">
     <span class="q-num" id="q-num">Question 1 / ?</span>
-    <span class="q-type-pill" id="q-type-pill">Choix unique</span>
     <div class="timer" id="timer">20</div>
   </div>
   <div class="ans-count-bar">
@@ -169,6 +177,17 @@
       <div class="a-grid" id="a-grid"></div>
     </div>
   </div>
+</div>
+
+<!-- ══════════════════ Q EXPLAIN ══════════════════ -->
+<div id="q-explain" class="screen">
+  <div class="explain-label">💡 Explication</div>
+  <h2 id="explain-qnum"></h2>
+  <div class="explain-img-wrap" id="explain-img-wrap" style="display:none;">
+    <img id="explain-img" src="" alt="explication">
+  </div>
+  <p id="explain-text" style="display:none;"></p>
+  <button class="btn btn-white" style="margin-top:8px;" onclick="showResults()">Voir les résultats →</button>
 </div>
 
 <!-- ══════════════════ Q RESULT ══════════════════ -->
@@ -247,6 +266,10 @@ function handleMessage(msg) {
       clearInterval(currentGame.timerInterval);
       showQResult(msg);
       break;
+    case 'question_explain':
+      clearInterval(currentGame.timerInterval);
+      showExplanation(msg);
+      break;
     case 'game_over':
       clearInterval(currentGame.timerInterval);
       clearInterval(currentGame.autoInterval);
@@ -288,11 +311,6 @@ function showQuestion(msg) {
   document.getElementById('q-text').textContent = msg.question;
   document.getElementById('ans-count').textContent    = '0 / ? réponses';
   document.getElementById('progress-fill').style.width = '0%';
-
-  const pill = document.getElementById('q-type-pill');
-  pill.textContent =
-    msg.questionType === 'multiple'  ? 'Choix multiple' :
-    msg.questionType === 'truefalse' ? 'Vrai / Faux'    : 'Choix unique';
 
   const imgPanel = document.getElementById('q-image-panel');
   const imgEl    = document.getElementById('q-image');
@@ -337,6 +355,23 @@ function showQuestion(msg) {
     if (t <= 5) timerEl.classList.add('urgent');
     if (t <= 0) clearInterval(currentGame.timerInterval);
   }, 1000);
+}
+
+function showResults() {
+  send({ type: 'show_results', pin: currentGame.pin });
+}
+
+function showExplanation(msg) {
+  showScreen('q-explain');
+  clearInterval(currentGame.autoInterval);
+  document.getElementById('explain-qnum').textContent = `Question ${msg.index + 1} / ${msg.total}`;
+  const wrap = document.getElementById('explain-img-wrap');
+  const img = document.getElementById('explain-img');
+  const txt = document.getElementById('explain-text');
+  if (msg.explanation && msg.explanation.image) { img.src = msg.explanation.image; wrap.style.display = 'block'; }
+  else { wrap.style.display = 'none'; }
+  if (msg.explanation && msg.explanation.text) { txt.textContent = msg.explanation.text; txt.style.display = 'block'; }
+  else { txt.style.display = 'none'; }
 }
 
 function showQResult(msg) {
