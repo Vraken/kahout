@@ -68,6 +68,18 @@ const MAX_A_LENGTH  = 200;
 const MAX_NAME_LEN  = 60;
 
 // ─── sanitizeQuestions ────────────────────────────────────────────────────────
+function sanitizeExplanation(expl) {
+  if (!expl || typeof expl !== 'object') return null;
+  const image = typeof expl.image === 'string' && expl.image.startsWith('/uploads/') ? expl.image : null;
+  const text  = typeof expl.text === 'string' ? expl.text.trim().slice(0, 500) : '';
+  if (!image && !text) return null;
+  return { image, text };
+}
+
+function hasExplanation(q) {
+  return !!(q && q.explanation && (q.explanation.image || q.explanation.text));
+}
+
 function sanitizeQuestions(questions) {
   if (!Array.isArray(questions) || questions.length === 0)
     throw new Error('Questions manquantes');
@@ -90,6 +102,7 @@ function sanitizeQuestions(questions) {
         correct,
         type:     'truefalse',
         image:    typeof q.image === 'string' && q.image.startsWith('/uploads/') ? q.image : null,
+        explanation: sanitizeExplanation(q.explanation),
       };
     }
 
@@ -104,6 +117,7 @@ function sanitizeQuestions(questions) {
         correct:  q.correct.filter(c => Number.isInteger(c) && c >= 0 && c < q.answers.length),
         type:     'multiple',
         image:    typeof q.image === 'string' && q.image.startsWith('/uploads/') ? q.image : null,
+        explanation: sanitizeExplanation(q.explanation),
       };
     }
 
@@ -117,6 +131,7 @@ function sanitizeQuestions(questions) {
       correct:  q.correct,
       type:     'single',
       image:    typeof q.image === 'string' && q.image.startsWith('/uploads/') ? q.image : null,
+      explanation: sanitizeExplanation(q.explanation),
     };
   });
 }
@@ -289,6 +304,10 @@ app.delete('/api/quizzes/:id', (req, res) => {
         const imgFile = path.join(__dirname, 'public', q.image);
         if (fs.existsSync(imgFile)) fs.unlinkSync(imgFile);
       }
+      if (q.explanation && q.explanation.image && q.explanation.image.startsWith('/uploads/')) {
+        const explFile = path.join(__dirname, 'public', q.explanation.image);
+        if (fs.existsSync(explFile)) fs.unlinkSync(explFile);
+      }
     });
   } catch {}
   fs.unlinkSync(file);
@@ -437,6 +456,10 @@ wss.on('connection', (ws) => {
       if (game.state === 'q_result') nextQuestion(game);
       return;
     }
+    if (type === 'show_results' && ws.role === 'host') {
+      if (game.state === 'q_explain') revealResults(game);
+      return;
+    }
     if (type === 'end_game' && ws.role === 'host') {
       endGame(game);
       return;
@@ -569,6 +592,35 @@ function revealAnswer(game) {
   if (game.state !== 'question') return;
   clearTimeout(game.timer);
   clearTimeout(game.autoTimer);
+  const q = game.questions[game.currentQ];
+  if (hasExplanation(q)) showExplanation(game);
+  else revealResults(game);
+}
+
+function showExplanation(game) {
+  if (game.state !== 'question') return;
+  clearTimeout(game.timer);
+  clearTimeout(game.autoTimer);
+  game.state = 'q_explain';
+  const q     = game.questions[game.currentQ];
+  const isLast = game.currentQ + 1 >= game.questions.length;
+
+  const payload = {
+    type:        'question_explain',
+    index:       game.currentQ,
+    total:       game.questions.length,
+    explanation: q.explanation,
+    isLast,
+  };
+  sendToHost(game, payload);
+  broadcast(game, payload);
+  // pas d'auto-avancement : l'hôte déclenche « show_results »
+}
+
+function revealResults(game) {
+  if (game.state !== 'question' && game.state !== 'q_explain') return;
+  clearTimeout(game.timer);
+  clearTimeout(game.autoTimer);
   game.state        = 'q_result';
   const q           = game.questions[game.currentQ];
   const leaderboard = getLeaderboard(game);
@@ -614,6 +666,8 @@ function cleanupOrphanUploads() {
         const quiz = JSON.parse(fs.readFileSync(path.join(QUIZ_DIR, f), 'utf8'));
         quiz.questions.forEach(q => {
           if (q.image && q.image.startsWith('/uploads/')) usedImages.add(path.basename(q.image));
+          if (q.explanation && q.explanation.image && q.explanation.image.startsWith('/uploads/'))
+            usedImages.add(path.basename(q.explanation.image));
         });
       } catch {}
     });
@@ -649,6 +703,10 @@ function cleanupInactiveQuizzes() {
               const imgFile = path.join(__dirname, 'public', q.image);
               if (fs.existsSync(imgFile)) fs.unlinkSync(imgFile);
             }
+            if (q.explanation && q.explanation.image && q.explanation.image.startsWith('/uploads/')) {
+              const explFile = path.join(__dirname, 'public', q.explanation.image);
+              if (fs.existsSync(explFile)) fs.unlinkSync(explFile);
+            }
           });
           fs.unlinkSync(filePath);
         }
@@ -674,7 +732,7 @@ app.get('/api/admin/stats', (req, res) => {
       try {
         const quiz = JSON.parse(fs.readFileSync(path.join(QUIZ_DIR, f), 'utf8'));
         totalQuestions += quiz.questions.length;
-        if (quiz.questions.some(q => q.image)) quizzesWithImages++;
+        if (quiz.questions.some(q => q.image || (q.explanation && q.explanation.image))) quizzesWithImages++;
       } catch {}
     });
 
@@ -728,6 +786,10 @@ app.delete('/api/admin/quizzes/:id', (req, res) => {
         const imgFile = path.join(__dirname, 'public', q.image);
         if (fs.existsSync(imgFile)) fs.unlinkSync(imgFile);
       }
+      if (q.explanation && q.explanation.image && q.explanation.image.startsWith('/uploads/')) {
+        const explFile = path.join(__dirname, 'public', q.explanation.image);
+        if (fs.existsSync(explFile)) fs.unlinkSync(explFile);
+      }
     });
   } catch {}
   fs.unlinkSync(file);
@@ -735,4 +797,4 @@ app.delete('/api/admin/quizzes/:id', (req, res) => {
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-server.listen(53559, '0.0.0.0', () => console.log(`🎮 Kahut lancé sur http://0.0.0.0:53559`));
+server.listen(2318, '0.0.0.0', () => console.log(`🎮 Kahut lancé sur http://0.0.0.0:2318`));
